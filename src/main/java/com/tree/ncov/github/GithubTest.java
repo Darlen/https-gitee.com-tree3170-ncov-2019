@@ -15,9 +15,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.tree.ncov.constant.Constants.BASE_FOLDER;
+import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
 
 /**
  * @ClassName com.tree.ncov.github
@@ -37,85 +39,159 @@ public class GithubTest {
     static Map<String, NcovDetail> addrDetailMap= new HashMap<>();
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyyMMdd");
 
-//    static DateTimeFormatter df = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
+
     /**
-     *
+     * 相同年月日的不同省市做一个group
      */
-    static Map<String/*年月日*/, Map<String/*省市*/, NcovDetail>> ncovMap = new HashMap<>();
+    static Map<String/*年月日*/, Map<String/*省市*/, NcovDetail>/*省市*/> ncovMap = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
-        FileReader fileReader = new FileReader(new File(BASE_FOLDER+"DXYArea.csv"));
+        initData();
+    }
 
+    private static void initData() throws Exception{
+        readFile();
+        batchInsert(ncovMap);
+    }
+
+    private static void readFile() throws Exception{
+        FileReader fileReader = new FileReader(new File(BASE_FOLDER+"DXYArea.csv"));
         BufferedReader br = new BufferedReader(fileReader);
 
         String line = null;
         int i = 0;
-        NcovDetail addrDetail = null;
+        NcovDetail detail = null;
         String addr = null;
         String city = null;
-
+        Map<String,NcovDetail> ncovDetailMap = new HashMap<>();
         while ((line = br.readLine()) != null){
             if(i == 0 ){ i++; continue;}
             String[] data = line.split(",");
-            addrDetail = new NcovDetail();
+            detail = new NcovDetail();
             addr = data[0];
             city = data[1];
-            addrDetail.setProvinceName(addr);
-            addrDetail.setCityName(data[1]);
-            addrDetail.setProvinceConfirmedCount(data[2]);
-            addrDetail.setProvinceSuspectedCount(Long.valueOf(data[3]));
-            addrDetail.setProvinceCuredCount(Long.valueOf(data[4]));
-            addrDetail.setProvinceDeadCount(Long.valueOf(data[5]));
+            detail.setProvinceName(addr);
+            detail.setCityName(data[1]);
+            detail.setProvinceConfirmedCount(Long.valueOf(data[2]));
+            detail.setProvinceSuspectedCount(Long.valueOf(data[3]));
+            detail.setProvinceCuredCount(Long.valueOf(data[4]));
+            detail.setProvinceDeadCount(Long.valueOf(data[5]));
 
-            addrDetail.setCityConfirmedCount(Long.valueOf(data[6]));
-            addrDetail.setCitySuspectedCount(Long.valueOf(data[7]));
-            addrDetail.setCityCuredCount(Long.valueOf(data[8]));
-            addrDetail.setCityDeadCount(Long.valueOf(data[9]));
-            Date d = null;
+            detail.setCityConfirmedCount(Long.valueOf(data[6]));
+            detail.setCitySuspectedCount(Long.valueOf(data[7]));
+            detail.setCityCuredCount(Long.valueOf(data[8]));
+            detail.setCityDeadCount(Long.valueOf(data[9]));
+            Date updateTime = null;
             try {
-                d = sdf.parse(data[10]);
+                updateTime = sdf.parse(data[10]);
 
             }catch (Exception e){
-                System.err.println(data[10]+"==="+JSON.toJSONString(addrDetail));
-                d = sdf2.parse(data[10]);
-            }
-            addrDetail.setUpdateTime(d);
-            addrDetail.setCreateTime(new Date());
-
-//            System.out.println(JSON.toJSONString(addrDetail));
-            String key =  d.getYear()+d.getMonth()+d.getDay()+"";
-            String key1 = addr+city;
-
-            if(ncovMap.containsKey(key)){
-                Map<String,NcovDetail> ncovDetailMap = ncovMap.get(key);
-                if(ncovDetailMap.containsKey(key1) ){
-                    if(d.getTime() > ncovDetailMap.get(key1).getUpdateTime().getTime()){
-                        //更新
-                    }else {
-                        System.out.println("重复地址， 忽略：" + JSON.toJSONString(addrDetail));
-                    }
-                }else {
-                    ncovDetailMap.put(key1, addrDetail);
-                    ncovMap.put(key, ncovDetailMap);
+                try {
+                    updateTime = sdf2.parse(data[10]);
+                }catch (Exception e1){
+                    System.err.println(data[10]+"==="+JSON.toJSONString(detail));
                 }
             }
+            detail.setUpdateTime(updateTime);
 
-            addrDetailMap.put(key,addrDetail);
-            if(!addrDetailMap.containsKey(key)) {
-                addrDetailMap.put(addr, addrDetail);
+//            System.out.println(JSON.toJSONString(addrDetail));
+            String yearMonthDay = sdf3.format(updateTime);
+            String provCity = addr+city;
+
+            //如果年月日相同
+            if(ncovMap.containsKey(yearMonthDay)){
+                ncovDetailMap = ncovMap.get(yearMonthDay);
+                //如果省份城市相同
+                if(ncovDetailMap.containsKey(provCity) ){
+                    if(updateTime.getTime() > ncovDetailMap.get(provCity).getUpdateTime().getTime()){
+                        //更新
+                        ncovDetailMap.put(provCity, detail);
+                        ncovMap.put(yearMonthDay, ncovDetailMap);
+                    }else {
+//                        System.out.println("重复条目， 忽略：" + JSON.toJSONString(detail));
+                    }
+                }else {
+                    ncovDetailMap.put(provCity, detail);
+                    ncovMap.put(yearMonthDay, ncovDetailMap);
+                }
             }else {
-                System.out.println("重复地址， 忽略："+ JSON.toJSONString(addrDetail));
+                ncovDetailMap = new HashMap<>();
+                ncovDetailMap.put(provCity,detail);
+                ncovMap.put(yearMonthDay, ncovDetailMap);
+
             }
+
             i++;
         }
 
-        int count = 0;
-        int num = 0;
+    }
 
+    private static void batchInsert(Map<String, Map<String, NcovDetail>> ncovMap) {
+        //插入次数，到99
+        int insertcount = 0;
+        //执行sql次数
+        int executeSqlNum = 0;
+        //所有数量
+        int allCount = 0;
+        //单层遍历次数
+        int travelCount1 = 0;
+        StringBuilder sql = new StringBuilder(1024*500);
+        sql.append(INSERT_NCOV_SQL_PREFIX);
+        StringBuilder valueSql = new StringBuilder(1024*500);
+        for(Map.Entry<String,Map<String,NcovDetail>> entry: ncovMap.entrySet()){
 
+            Map<String,NcovDetail> ncovDetailMap = entry.getValue();
 
-        System.out.println("size = "+addrDetailMap.size()+", num = "+num);
+            allCount = allCount+ncovDetailMap.size();
+            System.out.println("当前日期:"+entry.getKey()+"，第【"+travelCount1+"】轮遍历，"+", 条数 = "+ncovDetailMap.size()+", 总条数 = "+(allCount));
+            for(Map.Entry<String,NcovDetail> detailEntry : ncovDetailMap.entrySet()){
+                NcovDetail detail = detailEntry.getValue();
+                valueSql.append("(")
+                        .append("'").append(detail.getProvinceName()).append("'").append(",")
+                        .append("'").append(detail.getCityName()).append("'").append(",")
+                        .append(detail.getProvinceConfirmedCount()).append(",")
+                        .append(detail.getProvinceSuspectedCount()).append(",")
+                        .append(detail.getProvinceCuredCount()).append(",")
+                        .append(detail.getProvinceDeadCount()).append(",")
+                        .append(detail.getCityConfirmedCount()).append(",")
+                        .append(detail.getCitySuspectedCount()).append(",")
+                        .append(detail.getCityCuredCount()).append(",")
+                        .append(detail.getCityDeadCount()).append(",")
+                        .append("'").append(sdf2.format(detail.getUpdateTime())).append("'")
+                        .append(")");
 
+                if(insertcount == 99) {
+                    valueSql.append(";");
+                    DsUtil.execute(sql.append(valueSql).toString());
+
+                    insertcount = 0;
+                    executeSqlNum++;
+                    //清空
+                    valueSql = new StringBuilder(1024*50);
+                    sql = new StringBuilder(1024*500);
+                    sql.append(INSERT_NCOV_SQL_PREFIX);
+                }else {
+                    valueSql.append(",");
+                    insertcount++;
+                }
+            }
+            travelCount1++;
+
+            if(travelCount1 == ncovMap.size() && valueSql.length() != 0){
+                String s = valueSql.substring(0,valueSql.length()-1);
+                DsUtil.execute(sql.append(s).toString());
+                executeSqlNum++;
+            }
+        }
+
+        System.out.println("遍历【"+travelCount1+"】次，执行sql【"+executeSqlNum+"】次，总共数量【"+allCount+"】");
+    }
+
+    private static void emptyBufferSql(StringBuilder sql, StringBuilder valueSql) {
+        valueSql = new StringBuilder(1024*50);
+        sql = new StringBuilder(1024*500);
+        sql.append(INSERT_NCOV_SQL_PREFIX);
     }
 }

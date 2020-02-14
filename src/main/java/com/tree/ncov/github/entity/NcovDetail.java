@@ -18,7 +18,7 @@ import java.util.Date;
 public class NcovDetail {
     private String provinceName;
     private String cityName;
-    private String provinceConfirmedCount;
+    private Long provinceConfirmedCount;
     private Long provinceSuspectedCount;
     private Long provinceCuredCount;
     private Long provinceDeadCount;
