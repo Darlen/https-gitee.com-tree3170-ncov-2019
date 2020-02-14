@@ -34,11 +34,18 @@ import static com.tree.ncov.constant.Constants.*;
  */
 public class CnbDataTest {
     /**
+     * //TODO 持久化到redis
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
      */
     static Map<String, NcovAddrDetail> addrDetailMap= new HashMap<>();
 
     public static void main(String[] args) throws IOException {
+        readCsv();
+        batchInsert(addrDetailMap);
+    }
+
+    private static void readCsv() throws IOException{
+
         FileReader fileReader = new FileReader(new File(BASE_FOLDER+"肺炎具体地址经纬度.csv"));
 
         BufferedReader br = new BufferedReader(fileReader);
@@ -66,6 +73,13 @@ public class CnbDataTest {
             addrDetail.setCount(count);
             addrDetail.setLongitude(longtitude);
 
+            if(StringUtils.isEmpty(addrDetail.getAddress())
+                    ||StringUtils.isEmpty(addrDetail.getLongitude())
+                    |StringUtils.isEmpty(addrDetail.getLatitude())){
+                System.out.println("无效数据， 忽略："+ JSON.toJSONString(addrDetail));
+                continue;
+            }
+
             if(!addrDetailMap.containsKey(addr)) {
                 addrDetailMap.put(addr, addrDetail);
             }else {
@@ -74,17 +88,18 @@ public class CnbDataTest {
 
             i++;
         }
+    }
 
-        int count = 0;
-        int num = 0;
-
-
+    private static void batchInsert(Map<String, NcovAddrDetail> addrDetailMap) {
+        int insertCount = 0;
+        int executeSqlNum = 0;
         StringBuilder sql = new StringBuilder(1024*50);
+        StringBuilder valueSql = new StringBuilder(1024*500);
         NcovAddrDetail ncovAddrDetail = null;
-        sql.append("insert into ncov_addr_detail(address,province,city,district,latitude,count,longitude) values");
+        sql.append(INSERT_NCOV_SQL_ADDR_PREFIX);
         for(Map.Entry<String, NcovAddrDetail> entry: addrDetailMap.entrySet()){
             ncovAddrDetail = entry.getValue();
-            sql.append("(")
+            valueSql.append("(")
                     .append("'").append(ncovAddrDetail.getAddress()).append("'").append(",")
                     .append("'").append(ncovAddrDetail.getProvince()).append("'").append(",")
                     .append("'").append(ncovAddrDetail.getCity()).append("'").append(",")
@@ -94,26 +109,36 @@ public class CnbDataTest {
                     .append("'").append(ncovAddrDetail.getLongitude()).append("'")
                     .append(")");
 
-            if(count == 100) {
-                num++;
-                sql.append(";");
-                count = 0;
-                DsUtil.execute(sql.toString());
-                sql = new StringBuilder(1024*50);
-                sql.append("insert into ncov_addr_detail(address,province,city,district,latitude,count,longitude) values");
+            if(insertCount == 99) {
+                valueSql.append(";");
+                DsUtil.execute(sql.append(valueSql).toString());
 
+                insertCount = 0;
+                executeSqlNum++;
 
+                valueSql = new StringBuilder(1024*50);
+                sql = new StringBuilder(1024*500);
+                sql.append(INSERT_NCOV_SQL_ADDR_PREFIX);
             }else {
-                sql.append(",");
-                count++;
+                valueSql.append(",");
+                insertCount++;
             }
+        }
 
+        if(valueSql.length() != 0){
+            String s = valueSql.substring(0,valueSql.length()-1);
+            DsUtil.execute(sql.append(s).toString());
+            executeSqlNum++;
 
         }
 
-        System.out.println("size = "+addrDetailMap.size()+", num = "+num);
-
+        System.out.println("执行数据库【"+executeSqlNum+"】次，数据共【"+addrDetailMap.size()+"】条");
     }
 
+    private static void emptyBufferSql(StringBuilder sql, StringBuilder valueSql) {
+        valueSql = new StringBuilder(1024*50);
+        sql = new StringBuilder(1024*500);
+        sql.append(INSERT_NCOV_SQL_ADDR_PREFIX);
+    }
 
 }
