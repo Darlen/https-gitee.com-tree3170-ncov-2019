@@ -1,14 +1,17 @@
 package com.tree.ncov;
 
+import static com.tree.ncov.constant.Constants.*;
+
 import com.alibaba.fastjson.JSON;
-import com.tree.ncov.entity.Ncov;
-import com.tree.ncov.entity.NcovAddrDetail;
+import com.tree.ncov.cbndata.entity.NcovResult;
+import com.tree.ncov.cbndata.entity.NcovAddrDetail;
 import org.apache.commons.io.FileUtils;
 import org.json.CDL;
 import org.json.JSONArray;
 import org.json.JSONException;
-import org.springframework.boot.SpringApplication;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -23,9 +26,15 @@ import java.util.List;
 @SpringBootApplication
 public class NcovDemoApplication {
 
+    @Autowired
+    private static RedisTemplate redisTemplate;
+
+
+
+
     public static void main(String[] args) throws IOException {
         RestTemplate restTemplate = new RestTemplate();
-        Ncov o = restTemplate.getForObject("https://assets.cbndata.org/2019-nCoV/data.json?t=1581305742720", Ncov.class);
+        NcovResult o = restTemplate.getForObject(CBN_DATA_URL, NcovResult.class);
 
         List<NcovAddrDetail> ncovAddrDetails = o.getData();
         Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
@@ -40,7 +49,7 @@ public class NcovDemoApplication {
 
         System.out.println(ncovAddrDetails.size());
 
-        FileUtils.writeStringToFile(new File("/Users/tree/Desktop/肺炎具体地址经纬度.csv"), Json2Csv( JSON.toJSONString(ncovAddrDetails)));
+        FileUtils.writeStringToFile(new File(BASE_FOLDER,"肺炎具体地址经纬度.csv"), Json2Csv( JSON.toJSONString(ncovAddrDetails)));
     }
 
     public static String Json2Csv(String jsonstr) throws JSONException {

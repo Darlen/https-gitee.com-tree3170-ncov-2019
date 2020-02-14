@@ -1,4 +1,4 @@
-package com.tree.ncov.entity;
+package com.tree.ncov.cbndata.entity;
 
 import lombok.Data;
 

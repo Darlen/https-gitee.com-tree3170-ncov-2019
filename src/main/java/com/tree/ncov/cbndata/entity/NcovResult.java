@@ -1,4 +1,4 @@
-package com.tree.ncov.entity;
+package com.tree.ncov.cbndata.entity;
 
 import java.util.List;
 
@@ -13,6 +13,6 @@ import java.util.List;
  * @Version 1.0
  */
 @lombok.Data
-public class Ncov {
+public class NcovResult {
     private List<NcovAddrDetail> data;
 }
