@@ -1,11 +1,14 @@
 package com.tree.ncov.Util;
 
 import com.tree.nebula.datasource.dto.DataSourceDTO;
+import com.tree.nebula.datasource.dto.ParamDTO;
 import com.tree.nebula.datasource.enums.DataSourceTypesEnum;
 import com.tree.nebula.datasource.executor.QueryExecutorFactory;
 import com.tree.nebula.datasource.executor.RdsQueryExecutor;
 import com.tree.nebula.datasource.query.BoundSql;
 import com.tree.nebula.datasource.query.QueryContext;
+
+import java.util.List;
 
 /**
  * @ClassName com.tree.ncov.Util
@@ -18,7 +21,7 @@ import com.tree.nebula.datasource.query.QueryContext;
  * @Version 1.0
  */
 public class DsUtil {
-    public static void execute(String sql){
+    public static void execute(String sql, List<ParamDTO> params){
         DataSourceDTO dataSourceDTO = getDatasourceDto();
         RdsQueryExecutor executor = QueryExecutorFactory.getQueryExecutor(dataSourceDTO.getType());
         QueryContext context = QueryContext.sqlBuilder()

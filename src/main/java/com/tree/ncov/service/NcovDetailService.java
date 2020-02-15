@@ -9,6 +9,7 @@ import com.tree.ncov.github.entity.NcovProvDetail;
 import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -35,13 +36,12 @@ import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
 @Slf4j
 @Service
 public class NcovDetailService extends AbstractService {
+
+    @Value("${ncov.ds.name:mysql}")
+    private String dsName;
+
     @Autowired
     private RedisService redisService;
-
-    /**
-     * 相同年月日的不同省市做一个group
-     */
-//    static Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市对象*/>> ncovMap = new HashMap<>();
 
     /**
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
@@ -49,7 +49,7 @@ public class NcovDetailService extends AbstractService {
     static Map<String, NcovCityDetail> addrDetailMap = new HashMap<>();
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-    static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyyMMdd");
+    static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
 
     //
 
@@ -63,29 +63,75 @@ public class NcovDetailService extends AbstractService {
     @Override
     public void compareAndUpdate() throws Exception {
         List<NcovProvDetail> remoteChinaProvDetails = readFileFromRemote();
-        Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市对象*/>> ncovMap = (Map<String, Map<String, JSONObject>>) redisService.get(GITHUBU_DATA_REDIS_KEY);
 
+        handleRemoteData(remoteChinaProvDetails);
         /*
-            更新算法：
-            1. 判断日期是不是当天，
-                如果不是， 忽略
-                如果是，
-                    比较远程时间
-                        如果远程时间>redis中省的的时间， 更新（以省、市为key，更新city表， 以省为key更新province表）
-                        否则， 忽略
-
-
+         * 按年月日存储所有省集合对象， 取每天省的最新数据
+         *
+         * 算法：
+         *     如果redis中没有包含年月日，则增加省，增加城市， 并更新redis
+         *     否则远程的 省份更新时间 > redis中省份的更新时间， 则更新
          */
-//        remoteChinaProvDetails.forEach(remoteProvDetail -> {
-//            Date updateTime = remoteProvDetail.getUpdateTime();
-//
-//
-//        });
-        //对比
-        //省数据有没有变化
 
+        //获取redis数据
+//        Map<String/*年月日*/, Map<String/*省*/, JSONObject/*NcovProvDetail*/>> yearMonthDayProvDetailMap
+//                = (Map<String, Map<String, JSONObject>> )redisService.get(GITHUBU_DATA_REDIS_KEY);
 
-        //市数据有没有变化
+        remoteChinaProvDetails.forEach(remoteProvDetail -> {
+            String province = remoteProvDetail.getProvinceName();
+            Date updateTime = remoteProvDetail.getUpdateTime();
+            String yearMonthDay = sdf3.format(updateTime);
+            //当天对象
+            Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayprovDetailMap =
+                    (Map<String, JSONObject> )redisService.get(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+":"+yearMonthDay);
+
+            //如果当天数据为空，则新增
+            if(curDayprovDetailMap == null || curDayprovDetailMap.size() == 0){
+                //新增
+                batchUpdate(remoteProvDetail.getCities());
+                //TODO 增加省
+                curDayprovDetailMap.put(province,JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
+                redisService.put(yearMonthDay,curDayprovDetailMap);
+            }
+
+            //如果当前数据不为空， 且update时间 > redis中时间，则更新
+            JSONObject jsonObject = curDayprovDetailMap.get(province);
+            NcovProvDetail redisProvDetail = JSON.toJavaObject(jsonObject, NcovProvDetail.class);
+            if(updateTime.getTime() > redisProvDetail.getUpdateTime().getTime()){
+                //更新
+                List<NcovCityDetail> remoteCities = remoteProvDetail.getCities();
+                //TODO 更新省
+
+                //删除当天的这个省份的所有数据，
+
+                String mysqlDeleteSql = "delete from ncov_detail where provinceName='"+province+"', TO_DAYS(updateTime) = TO_DAYS('"+sdf2.format(updateTime)+"')";
+                String pgDeleteSql = "delete FROM ncov_detail WHERE finish_time BETWEEN TIMESTAMP'"+yearMonthDay+"' AND TIMESTAMP'"+yearMonthDay+" 23:59:59'";
+                DsUtil.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql, null);
+                //插入当前的这个省份的所有数据
+                batchUpdate(remoteCities);
+            }
+
+        });
+
+    }
+
+    /**
+     * 把省份相关的字段塞进城市中
+     * @param remoteChinaProvDetails
+     */
+    private void handleRemoteData(List<NcovProvDetail> remoteChinaProvDetails) {
+        remoteChinaProvDetails.forEach(provDetail -> {
+            Date updateTime = provDetail.getUpdateTime();
+            List<NcovCityDetail> cityDetails = provDetail.getCities();
+            cityDetails.forEach(cityDetail -> {
+                cityDetail.setProvinceConfirmedCount(provDetail.getConfirmedCount());
+                cityDetail.setCitySuspectedCount(provDetail.getSuspectedCount());
+                cityDetail.setCityDeadCount(provDetail.getDeadCount());
+                cityDetail.setCityCuredCount(provDetail.getCuredCount());
+                cityDetail.setUpdateTime(updateTime);
+                cityDetail.setProvinceName(provDetail.getProvinceName());
+            });
+        });
     }
 
     @Override
@@ -177,7 +223,7 @@ public class NcovDetailService extends AbstractService {
 
     @Override
     public void initTable() {
-        DsUtil.execute(TRUNCATE_DETAIL_TABLE);
+        DsUtil.execute(TRUNCATE_DETAIL_TABLE,null);
     }
 
 
@@ -286,7 +332,7 @@ public class NcovDetailService extends AbstractService {
                 allCount, duplicateCount, ncovCityDetails.size(), (System.currentTimeMillis() - start));
 
 
-        redisService.put(GITHUBU_DATA_REDIS_KEY, yearMonthDayProvDetailMap);
+//        redisService.put(GITHUBU_DATA_REDIS_KEY, yearMonthDayProvDetailMap);
     }
 
     /**
@@ -298,8 +344,8 @@ public class NcovDetailService extends AbstractService {
     private void handleProvinceStat(List<NcovCityDetail> allCityDetails,
                                     Map<String/*年月日*/, Map<String/*省*/, NcovProvDetail>> yearMonthDayProvDetailMap) {
         yearMonthDayProvDetailMap.forEach((yearMonthDay, provDetailMap) -> {
-            Map<String/*省*/, NcovProvDetail> yearMonthDayProvDetail = yearMonthDayProvDetailMap.get(yearMonthDay);
-            yearMonthDayProvDetail.forEach((province, provDetail) -> {
+//            Map<String/*省*/, NcovProvDetail> yearMonthDayProvDetail = yearMonthDayProvDetailMap.get(yearMonthDay);
+            provDetailMap.forEach((province, provDetail) -> {
                 Long confirmedCount = 0L;
                 Long suspectedCount = 0L;
                 Long curedCount = 0L;
@@ -326,11 +372,13 @@ public class NcovDetailService extends AbstractService {
                         provDetail.setCuredCount(curedCount);
                         cities.add(cityDetail);
                         provDetail.setCities(cities);
-                        yearMonthDayProvDetail.put(province, provDetail);
+                        provDetailMap.put(province, provDetail);
                     }
                 }
                 ;
             });
+            //按每天的省放入对象
+            redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+":"+yearMonthDay,provDetailMap);
         });
 
 //        System.out.println(JSON.toJSONString(yearMonthDayProvDetailMap,true));
@@ -398,7 +446,7 @@ public class NcovDetailService extends AbstractService {
 
             if (insertcount == 99) {
                 valueSql.append(";");
-                DsUtil.execute(sql.append(valueSql).toString());
+                DsUtil.execute(sql.append(valueSql).toString(),null);
 
                 insertcount = 0;
                 executeSqlNum++;
@@ -415,7 +463,7 @@ public class NcovDetailService extends AbstractService {
 
             if (travelCount == addrDetails.size() && valueSql.length() != 0) {
                 String s = valueSql.substring(0, valueSql.length() - 1);
-                DsUtil.execute(sql.append(s).toString());
+                DsUtil.execute(sql.append(s).toString(),null);
                 executeSqlNum++;
             }
         }

@@ -6,6 +6,8 @@ spring:
 ncov:
   base: /Users/tree/Desktop/ncov/
   truncate: false
+  ds:
+    name: pg
   cbndata:
     url: https://assets.cbndata.org/2019-nCoV/data.json
     csv-file: ncov_addr_detail.csv

@@ -36,8 +36,8 @@ public interface Constants {
     //==========================GITHUB
 
     String GITHUB_DATA_URL = "https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json";
-    String GITHUBU_DATA_REDIS_KEY = "ncov:github";
-    String GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY = "ncov:github:province";
+//    String GITHUBU_DATA_REDIS_KEY = "ncov:github";
+//    String GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY = "ncov:github:province";
     String GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY = "ncov:github:city";
     String GITHUB_DATA_CSV_FILE_NAME = "DXYArea.csv";
     String GITHUB_DATA_JSON_FILE_NAME = "DXYArea.json";

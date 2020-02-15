@@ -166,7 +166,7 @@ public class NcovAddrService extends AbstractService {
 
     @Override
     public void initTable() {
-        DsUtil.execute(TRUNCATE_ADDR_TABLE);
+        DsUtil.execute(TRUNCATE_ADDR_TABLE,null);
     }
 
 
@@ -219,7 +219,7 @@ public class NcovAddrService extends AbstractService {
 
             if (insertCount == 99) {
                 valueSql.append(";");
-                DsUtil.execute(sql.append(valueSql).toString());
+                DsUtil.execute(sql.append(valueSql).toString(),null);
 
                 insertCount = 0;
                 executeSqlNum++;
@@ -235,7 +235,7 @@ public class NcovAddrService extends AbstractService {
 
         if (valueSql.length() != 0) {
             String s = valueSql.substring(0, valueSql.length() - 1);
-            DsUtil.execute(sql.append(s).toString());
+            DsUtil.execute(sql.append(s).toString(),null);
             executeSqlNum++;
 
         }
