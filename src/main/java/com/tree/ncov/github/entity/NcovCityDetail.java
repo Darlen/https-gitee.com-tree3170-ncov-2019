@@ -15,8 +15,10 @@ import java.util.Date;
  * @Version 1.0
  */
 @Data
-public class NcovDetail {
+public class NcovCityDetail {
+    private String country = "中国";
     private String provinceName;
+    private String provinceShortName;
     private String cityName;
     private Long provinceConfirmedCount;
     private Long provinceSuspectedCount;

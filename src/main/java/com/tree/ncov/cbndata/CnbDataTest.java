@@ -67,7 +67,7 @@ public class CnbDataTest {
             if(i == 0 ){ i++; continue;}
             String[] data = line.split(",");
             addrDetail = new NcovAddrDetail();
-            //TODO 改为反射
+            //TODO 改为读JSON文件
             addr = data[0];
             latitude = data[4];
             longtitude = data[6];

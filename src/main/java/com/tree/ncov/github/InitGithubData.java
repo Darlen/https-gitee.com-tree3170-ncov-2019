@@ -2,21 +2,15 @@ package com.tree.ncov.github;
 
 import com.alibaba.fastjson.JSON;
 import com.tree.ncov.Util.DsUtil;
-import com.tree.ncov.cbndata.entity.NcovAddrDetail;
-import com.tree.ncov.github.entity.NcovDetail;
-import org.springframework.util.StringUtils;
+import com.tree.ncov.github.entity.NcovCountryResult;
+import com.tree.ncov.github.entity.NcovCityDetail;
+import com.tree.ncov.github.entity.NcovProvDetail;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.tree.ncov.constant.Constants.*;
 
@@ -35,7 +29,7 @@ public class InitGithubData {
     /**
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
      */
-    static Map<String, NcovDetail> addrDetailMap= new HashMap<>();
+    static Map<String, NcovCityDetail> addrDetailMap= new HashMap<>();
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyyMMdd");
@@ -44,13 +38,49 @@ public class InitGithubData {
     /**
      * 相同年月日的不同省市做一个group
      */
-    static Map<String/*年月日*/, Map<String/*省市*/, NcovDetail>/*省市*/> ncovMap = new HashMap<>();
+    static Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail>/*省市*/> ncovMap = new HashMap<>();
 
     public static void main(String[] args) throws Exception {
-        initData();
+        initJson();
+//        initCsvData();
     }
 
-    private static void initData() throws Exception{
+    private static void initJson() throws Exception{
+        FileReader fileReader = new FileReader(new File(GITHUB_DATA_JSON_FILE_PATH));
+        BufferedReader br = new BufferedReader(fileReader);
+        String line = null;
+        StringBuilder sb = new StringBuilder(1024*50);
+        while ((line = br.readLine()) != null){
+            sb.append(line);
+        }
+        NcovCountryResult result = JSON.parseObject(sb.toString(), NcovCountryResult.class);
+        //处理数据, 获取有效的中国省市数据
+        List<NcovProvDetail> provDetails = result.getResults();
+        List<NcovProvDetail> chinaProvDetails = new ArrayList<>();
+        Map<String/*省*/,List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
+
+        provDetails.forEach(ncovProvDetail -> {
+            if(ncovProvDetail.getCountry().indexOf("中国") != -1){
+                chinaProvDetails.add(ncovProvDetail);
+                chinaProvCityMap.put(ncovProvDetail.getProvinceName(),ncovProvDetail.getCities());
+            }
+        });
+
+        //对比
+        //省数据有没有变化
+
+
+        //市数据有没有变化
+
+
+
+
+
+        System.out.println(chinaProvDetails.size());
+
+    }
+
+    private static void initCsvData() throws Exception{
         readFile();
         truncateTable();
         batchInsert(ncovMap);
@@ -63,15 +93,15 @@ public class InitGithubData {
 
         String line = null;
         int i = 0;
-        NcovDetail detail = null;
+        NcovCityDetail detail = null;
         String addr = null;
         String city = null;
-        Map<String,NcovDetail> ncovDetailMap = new HashMap<>();
+        Map<String, NcovCityDetail> ncovDetailMap = new HashMap<>();
         while ((line = br.readLine()) != null){
             //第一行为表头， 忽略
             if(i == 0 ){ i++; continue;}
             String[] data = line.split(",");
-            detail = new NcovDetail();
+            detail = new NcovCityDetail();
             addr = data[0];
             city = data[1];
             detail.setProvinceName(addr);
@@ -135,7 +165,7 @@ public class InitGithubData {
         DsUtil.execute(TRUNCATE_DETAIL_TABLE);
     }
 
-    private static void batchInsert(Map<String, Map<String, NcovDetail>> ncovMap) {
+    private static void batchInsert(Map<String, Map<String, NcovCityDetail>> ncovMap) {
         //插入次数，到99
         int insertcount = 0;
         //执行sql次数
@@ -147,14 +177,14 @@ public class InitGithubData {
         StringBuilder sql = new StringBuilder(1024*500);
         sql.append(INSERT_NCOV_SQL_PREFIX);
         StringBuilder valueSql = new StringBuilder(1024*500);
-        for(Map.Entry<String,Map<String,NcovDetail>> entry: ncovMap.entrySet()){
+        for(Map.Entry<String,Map<String, NcovCityDetail>> entry: ncovMap.entrySet()){
 
-            Map<String,NcovDetail> ncovDetailMap = entry.getValue();
+            Map<String, NcovCityDetail> ncovDetailMap = entry.getValue();
 
             allCount = allCount+ncovDetailMap.size();
             System.out.println("当前日期:"+entry.getKey()+"，第【"+travelCount1+"】轮遍历，"+", 条数 = "+ncovDetailMap.size()+", 总条数 = "+(allCount));
-            for(Map.Entry<String,NcovDetail> detailEntry : ncovDetailMap.entrySet()){
-                NcovDetail detail = detailEntry.getValue();
+            for(Map.Entry<String, NcovCityDetail> detailEntry : ncovDetailMap.entrySet()){
+                NcovCityDetail detail = detailEntry.getValue();
                 valueSql.append("(")
                         .append("'").append(detail.getProvinceName()).append("'").append(",")
                         .append("'").append(detail.getCityName()).append("'").append(",")

@@ -10,6 +10,7 @@ import org.json.CDL;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
@@ -33,7 +34,8 @@ public class NcovDemoApplication {
 
 
     public static void main(String[] args) throws IOException {
-        readFile();
+        SpringApplication.run(NcovDemoApplication.class, args);
+
     }
 
     private static void readFile() {

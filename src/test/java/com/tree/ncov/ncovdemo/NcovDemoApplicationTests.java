@@ -16,8 +16,6 @@ class NcovDemoApplicationTests {
 
     @Test
     public void setValue(){
-        ncovService.setValue();
-        System.out.println(ncovService.getValue());
     }
 
 }

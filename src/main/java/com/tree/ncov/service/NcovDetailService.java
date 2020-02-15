@@ -15,14 +15,10 @@ import org.springframework.stereotype.Service;
  * @Date 2020-02-15 11:50
  * @Version 1.0
  */
-//@Service
+@Service
 public class NcovDetailService {
-//    @Autowired
+    @Autowired
     private RedisTemplate redisTemplate;
 
-    public static void main(String[] args) {
 
-
-
-    }
 }
