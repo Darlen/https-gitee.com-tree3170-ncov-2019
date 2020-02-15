@@ -18,8 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.tree.ncov.constant.Constants.BASE_FOLDER;
-import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
+import static com.tree.ncov.constant.Constants.*;
 
 /**
  * @ClassName com.tree.ncov.github
@@ -31,7 +30,7 @@ import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
  * @Date 2020-02-14 13:40
  * @Version 1.0
  */
-public class GithubTest {
+public class InitGithubData {
 
     /**
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
@@ -53,11 +52,13 @@ public class GithubTest {
 
     private static void initData() throws Exception{
         readFile();
+        truncateTable();
         batchInsert(ncovMap);
     }
 
+
     private static void readFile() throws Exception{
-        FileReader fileReader = new FileReader(new File(BASE_FOLDER+"DXYArea.csv"));
+        FileReader fileReader = new FileReader(new File(GITHUB_DATA_CSV_FILE_PATH));
         BufferedReader br = new BufferedReader(fileReader);
 
         String line = null;
@@ -67,6 +68,7 @@ public class GithubTest {
         String city = null;
         Map<String,NcovDetail> ncovDetailMap = new HashMap<>();
         while ((line = br.readLine()) != null){
+            //第一行为表头， 忽略
             if(i == 0 ){ i++; continue;}
             String[] data = line.split(",");
             detail = new NcovDetail();
@@ -126,6 +128,11 @@ public class GithubTest {
             i++;
         }
 
+
+    }
+
+    private static void truncateTable() {
+        DsUtil.execute(TRUNCATE_DETAIL_TABLE);
     }
 
     private static void batchInsert(Map<String, Map<String, NcovDetail>> ncovMap) {

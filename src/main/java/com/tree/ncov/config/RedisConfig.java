@@ -38,7 +38,7 @@ public class RedisConfig {
         //key序列化
         redisTemplate.setKeySerializer(stringRedisSerializer);
         //value以fastjson序列化
-        redisTemplate.setValueSerializer(new JdkSerializationRedisSerializer());
+        redisTemplate.setValueSerializer(new FastJsonRedisSerializer<>(Object.class));
         return redisTemplate;
     }
 }

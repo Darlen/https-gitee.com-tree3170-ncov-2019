@@ -33,32 +33,40 @@ public class NcovDemoApplication {
 
 
     public static void main(String[] args) throws IOException {
-        RestTemplate restTemplate = new RestTemplate();
-        NcovResult o = restTemplate.getForObject(CBN_DATA_URL, NcovResult.class);
-
-        List<NcovAddrDetail> ncovAddrDetails = o.getData();
-        Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
-        while (it.hasNext()){
-            NcovAddrDetail detail  = it.next();
-            if(StringUtils.isEmpty(detail.getAddress())
-                ||StringUtils.isEmpty(detail.getLongitude())
-                    |StringUtils.isEmpty(detail.getLatitude())){
-                it.remove();
-            }
-        }
-
-        System.out.println(ncovAddrDetails.size());
-
-        FileUtils.writeStringToFile(new File(BASE_FOLDER,"肺炎具体地址经纬度.csv"), Json2Csv( JSON.toJSONString(ncovAddrDetails)));
+        readFile();
     }
 
-    public static String Json2Csv(String jsonstr) throws JSONException {
-        JSONArray jsonArray = new JSONArray(jsonstr);
-        //在内容开头加入UTF-8的BOM标识，如果用Excel打开没有这个会乱码的
-        String UTF_BOM_INFO = new String(new byte[] { (byte) 0xEF, (byte) 0xBB,(byte) 0xBF });
-        String csv =UTF_BOM_INFO+CDL.toString(jsonArray);
-        return csv;
+    private static void readFile() {
+
     }
+
+//    private static void downloadCsv() throws IOException{
+//        RestTemplate restTemplate = new RestTemplate();
+//        NcovResult o = restTemplate.getForObject(CBN_DATA_URL, NcovResult.class);
+//
+//        List<NcovAddrDetail> ncovAddrDetails = o.getData();
+//        Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
+//        while (it.hasNext()){
+//            NcovAddrDetail detail  = it.next();
+//            if(StringUtils.isEmpty(detail.getAddress())
+//                    ||StringUtils.isEmpty(detail.getLongitude())
+//                    |StringUtils.isEmpty(detail.getLatitude())){
+//                it.remove();
+//            }
+//        }
+//
+//        System.out.println(ncovAddrDetails.size());
+//
+//        FileUtils.writeStringToFile(new File(BASE_FOLDER,"肺炎具体地址经纬度.csv"), Json2Csv( JSON.toJSONString(ncovAddrDetails)));
+//    }
+//
+//    public static String Json2Csv(String jsonstr) throws JSONException {
+//        JSONArray jsonArray = new JSONArray(jsonstr);
+//        //在内容开头加入UTF-8的BOM标识，如果用Excel打开没有这个会乱码的
+//        String UTF_BOM_INFO = new String(new byte[] { (byte) 0xEF, (byte) 0xBB,(byte) 0xBF });
+//        String csv =UTF_BOM_INFO+CDL.toString(jsonArray);
+//        return csv;
+//    }
 
 
 
