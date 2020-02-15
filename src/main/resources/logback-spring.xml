@@ -17,7 +17,7 @@
   -->
 
 <configuration debug="false" scan="false">
-    <springProperty scop="context" name="spring.application.name" source="spring.application.name" defaultValue="pig"/>
+    <springProperty scop="context" name="spring.application.name" source="spring.application.name" defaultValue="ncov"/>
     <!-- Console log output -->
     <property name="log.path" value="logs/${spring.application.name}"/>
     <!-- 彩色日志格式 -->
@@ -79,6 +79,7 @@
 <!--    <logger name="org.springframework" level="INFO"></logger>-->
     <logger name="org.springframework.cloud.config.client.ConfigServerInstanceProvider" level="INFO"></logger>
     <logger name="org.springframework.retry.support.RetryTemplate" level="INFO"></logger>
+    <logger name="com.tree.nebula.datasource.executor.RdsQueryExecutor" level="WARN"></logger>
 
 
     <!-- Level: FATAL 0  ERROR 3  WARN 4  INFO 6  DEBUG 7 -->

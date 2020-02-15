@@ -41,9 +41,9 @@ public class CnbDataTest {
 //    public static void main(String[] args) throws IOException {
 ////        downloadJson2CsvToLocal();
 //        readLocalCsv();
-////        readRemoteJsonFile();
+////        readFileFromRemote();
 //        truncateTable();
-//        batchInsert(addrDetailMap);
+//        batchUpdate(addrDetailMap);
 //    }
 
 //    private static void truncateTable() {
@@ -97,7 +97,7 @@ public class CnbDataTest {
 //        }
 //    }
 //
-//    private static void batchInsert(Map<String, NcovAddrDetail> addrDetailMap) {
+//    private static void batchUpdate(Map<String, NcovAddrDetail> addrDetailMap) {
 //        int insertCount = 0;
 //        int executeSqlNum = 0;
 //        StringBuilder sql = new StringBuilder(1024*50);
@@ -148,7 +148,7 @@ public class CnbDataTest {
 //        sql.append(INSERT_NCOV_SQL_ADDR_PREFIX);
 //    }
 //
-//    private static List<NcovAddrDetail> readRemoteJsonFile() throws IOException{
+//    private static List<NcovAddrDetail> readFileFromRemote() throws IOException{
 //        RestTemplate restTemplate = new RestTemplate();
 //        NcovResult o = restTemplate.getForObject(CBN_DATA_URL, NcovResult.class);
 //
@@ -179,7 +179,7 @@ public class CnbDataTest {
 //    }
 //
 //    private static void downloadJson2CsvToLocal() throws IOException{
-//        List<NcovAddrDetail> ncovAddrDetails = readRemoteJsonFile();
+//        List<NcovAddrDetail> ncovAddrDetails = readFileFromRemote();
 //        FileUtils.writeStringToFile(new File(CBN_DATA_CSV_FILE_PATH),
 //                Json2Csv(JSON.toJSONString(ncovAddrDetails)));
 //    }

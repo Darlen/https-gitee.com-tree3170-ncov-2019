@@ -1,19 +1,21 @@
 package com.tree.ncov.service;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.tree.ncov.Util.DsUtil;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountryResult;
 import com.tree.ncov.github.entity.NcovProvDetail;
 import com.tree.ncov.redis.impl.RedisService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -30,71 +32,65 @@ import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
  * @Date 2020-02-15 11:50
  * @Version 1.0
  */
+@Slf4j
 @Service
-public class NcovDetailService {
-    @Autowired
-    private RedisTemplate redisTemplate;
+public class NcovDetailService extends AbstractService {
     @Autowired
     private RedisService redisService;
 
     /**
+     * 相同年月日的不同省市做一个group
+     */
+//    static Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市对象*/>> ncovMap = new HashMap<>();
+
+    /**
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
      */
-    static Map<String, NcovCityDetail> addrDetailMap= new HashMap<>();
+    static Map<String, NcovCityDetail> addrDetailMap = new HashMap<>();
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyyMMdd");
 
+    //
 
     /**
-     * 相同年月日的不同省市做一个group
+     * 如果不是当天数据， 忽略
+     * 拿当天数据做对比， 如果存在， 则比较更新时间，如果不存在， 则添加
+     *
+     * @throws Exception
      */
-//    static Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市*/>> ncovMap = new HashMap<>();
+    @Scheduled
+    @Override
+    public void compareAndUpdate() throws Exception {
+        List<NcovProvDetail> remoteChinaProvDetails = readFileFromRemote();
+        Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市对象*/>> ncovMap = (Map<String, Map<String, JSONObject>>) redisService.get(GITHUBU_DATA_REDIS_KEY);
+
+        /*
+            更新算法：
+            1. 判断日期是不是当天，
+                如果不是， 忽略
+                如果是，
+                    比较远程时间
+                        如果远程时间>redis中省的的时间， 更新（以省、市为key，更新city表， 以省为key更新province表）
+                        否则， 忽略
 
 
-    public void initJson() throws Exception{
-        FileReader fileReader = new FileReader(new File(GITHUB_DATA_JSON_FILE_PATH));
-        BufferedReader br = new BufferedReader(fileReader);
-        String line = null;
-        StringBuilder sb = new StringBuilder(1024*50);
-        while ((line = br.readLine()) != null){
-            sb.append(line);
-        }
-        NcovCountryResult result = JSON.parseObject(sb.toString(), NcovCountryResult.class);
-        //处理数据, 获取有效的中国省市数据
-        List<NcovProvDetail> provDetails = result.getResults();
-        List<NcovProvDetail> chinaProvDetails = new ArrayList<>();
-        Map<String/*省*/,List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
-
-        provDetails.forEach(ncovProvDetail -> {
-            if(ncovProvDetail.getCountry().indexOf("中国") != -1){
-                chinaProvDetails.add(ncovProvDetail);
-                chinaProvCityMap.put(ncovProvDetail.getProvinceName(),ncovProvDetail.getCities());
-            }
-        });
-
+         */
+//        remoteChinaProvDetails.forEach(remoteProvDetail -> {
+//            Date updateTime = remoteProvDetail.getUpdateTime();
+//
+//
+//        });
         //对比
         //省数据有没有变化
 
 
         //市数据有没有变化
-
-
-
-
-
-        System.out.println(chinaProvDetails.size());
-
     }
 
-    public void initCsvData() throws Exception{
-        readFile();
-        truncateTable();
-        batchInsert();
-    }
-
-
-    public void readFile() throws Exception{
+    @Override
+    public List readFileFromLocal() throws IOException {
+        long start = System.currentTimeMillis();
         FileReader fileReader = new FileReader(new File(GITHUB_DATA_CSV_FILE_PATH));
         BufferedReader br = new BufferedReader(fileReader);
 
@@ -104,10 +100,12 @@ public class NcovDetailService {
         String province = null;
         String city = null;
         List<NcovCityDetail> ncovCityDetails = new ArrayList<>();
-        Map<String, NcovCityDetail> ncovCityDetailMap = new HashMap<>();
-        while ((line = br.readLine()) != null){
+        while ((line = br.readLine()) != null) {
             //第一行为表头， 忽略
-            if(i == 0 ){ i++; continue;}
+            if (i == 0) {
+                i++;
+                continue;
+            }
             String[] data = line.split(",");
             detail = new NcovCityDetail();
             province = data[0];
@@ -126,106 +124,251 @@ public class NcovDetailService {
             Date updateTime = null;
             try {
                 updateTime = sdf.parse(data[10]);
-
-            }catch (Exception e){
+            } catch (Exception e) {
                 try {
                     updateTime = sdf2.parse(data[10]);
-                }catch (Exception e1){
-                    System.err.println(data[10]+"==="+JSON.toJSONString(detail));
+                } catch (Exception e1) {
+                    System.err.println(data[10] + "===" + JSON.toJSONString(detail));
                 }
             }
             detail.setUpdateTime(updateTime);
             ncovCityDetails.add(detail);
 
             String yearMonthDay = sdf3.format(updateTime);
-            String provCity = province+city;
-
-//            //如果年月日相同
-//            if(ncovMap.containsKey(yearMonthDay)){
-//                ncovCityDetailMap = ncovMap.get(yearMonthDay);
-//                //如果省份城市相同
-//                if(ncovCityDetailMap.containsKey(provCity) ){
-//                    if(updateTime.getTime() > ncovCityDetailMap.get(provCity).getUpdateTime().getTime()){
-//                        //更新
-//                        ncovCityDetailMap.put(provCity, detail);
-//                        ncovMap.put(yearMonthDay, ncovCityDetailMap);
-//                    }else {
-////                        System.out.println("重复条目， 忽略：" + JSON.toJSONString(detail));
-//                    }
-//                }else {
-//                    //新增
-//                    ncovCityDetailMap.put(provCity, detail);
-//                    ncovMap.put(yearMonthDay, ncovCityDetailMap);
-//                }
-//            }else {
-//                ncovCityDetailMap = new HashMap<>();
-//                ncovCityDetailMap.put(provCity,detail);
-//                ncovMap.put(yearMonthDay, ncovCityDetailMap);
-//
-//            }
+            String provCity = province + city;
 
             i++;
         }
 
-        putDataInRedis(ncovCityDetails, ncovCityDetailMap);
+        putDataInRedis(ncovCityDetails);
+        log.info("==>执行[readFileFromLocal] 总花费时间：{}", (System.currentTimeMillis() - start));
 
-
+        return ncovCityDetails;
     }
 
-    private void putDataInRedis(List<NcovCityDetail> ncovCityDetails,Map<String, NcovCityDetail> ncovDetailMap) {
-        Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市*/>> ncovMap = new HashMap<>();
-        Map<String, NcovCityDetail> ncovCityDetailMap = new HashMap<>();
-        for(NcovCityDetail ncovCityDetail : ncovCityDetails){
-            //          /*
-//            取出当天每个城市的数据（由于每个城市当天会有多条数据， 取最新的数据即可）， 具体算法如下：
-//            如果年月日相同， 则取出 ncovCityDetailMap
-//                如果 ncovCityDetailMap 包含当前省市
-//                    如果更新时间<当前实体的更新时间
-//                        更新 ncovCityDetailMap
-//                        更新ncovMap
-//                    否则，
-//                如果不包含，
-//                    则新增
-//             */
+    @Override
+    public List readFileFromRemote() throws IOException {
+        long start = System.currentTimeMillis();
+        FileReader fileReader = new FileReader(new File(GITHUB_DATA_JSON_FILE_PATH));
+        BufferedReader br = new BufferedReader(fileReader);
+        String line = null;
+        StringBuilder sb = new StringBuilder(1024 * 50);
+        while ((line = br.readLine()) != null) {
+            sb.append(line);
+        }
+        NcovCountryResult result = JSON.parseObject(sb.toString(), NcovCountryResult.class);
+        //处理数据, 获取有效的中国省市数据
+        List<NcovProvDetail> provDetails = result.getResults();
+        List<NcovProvDetail> chinaProvDetails = new ArrayList<>();
+        Map<String/*省*/, List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
+
+        provDetails.forEach(ncovProvDetail -> {
+            if (ncovProvDetail.getCountry().indexOf("中国") != -1) {
+                chinaProvDetails.add(ncovProvDetail);
+                chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
+            }
+        });
+
+
+        log.info("==>执行[readFileFromRemote] 总花费时间：{}", (System.currentTimeMillis() - start));
+        return chinaProvDetails;
+    }
+
+
+    @Override
+    public void initTable() {
+        DsUtil.execute(TRUNCATE_DETAIL_TABLE);
+    }
+
+
+    @Override
+    public void putDataInRedis(List ncovCityDetails) {
+        long start = System.currentTimeMillis();
+        /**
+         * 按年月日存储所有省集合对象， 取每天省的最新数据
+         */
+        Map<String/*年月日*/, Map<String/*省*/, NcovProvDetail>> yearMonthDayProvDetailMap = new HashMap<>();
+        /**
+         * 按年月日存储所有市集合对象, 为了去除每天重复的省市数据， 取最新的数据
+         * 目的：去重， 并留下最新的数据
+         */
+        Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail>> yearMonthDayCityDetailMap = new HashMap<>();
+        /**
+         * 所有省对象， 用于直接插入db
+         */
+        List<NcovProvDetail> allProvDetails = new ArrayList<>();
+        /**
+         * 所有省市对象， 用于直接插入db
+         */
+        List<NcovCityDetail> allCityDetails = new ArrayList<>();
+        int allCount = ncovCityDetails.size();
+        int duplicateCount = 0;
+        Iterator<NcovCityDetail> it = ncovCityDetails.iterator();
+        while (it.hasNext()) {
+            NcovCityDetail ncovCityDetail = it.next();
+               /*
+                取出当天每个城市的数据（由于每个城市当天会有多条数据， 取最新的数据即可）， 具体算法如下：
+                如果年月日相同， 则取出 ncovCityDetailMap
+                    如果 ncovCityDetailMap 包含当前省市
+                        如果更新时间<当前实体的更新时间
+                            更新 ncovCityDetailMap
+                            更新 ncovMap
+                        否则，移除该条数据
+                    如果不包含，则新增
+
+                 */
             String province = ncovCityDetail.getProvinceName();
             String city = ncovCityDetail.getCityName();
             Date updateTime = ncovCityDetail.getUpdateTime();
             String yearMonthDay = sdf3.format(updateTime);
-            String provCity = province+city;
-//            //如果年月日相同
-            if(ncovMap.containsKey(yearMonthDay)){
-                ncovCityDetailMap = ncovMap.get(yearMonthDay);
-                //如果省份城市相同
-                if(ncovCityDetailMap.containsKey(provCity) ){
-                    if(updateTime.getTime() > ncovCityDetailMap.get(provCity).getUpdateTime().getTime()){
-                        //更新
-                        ncovCityDetailMap.put(provCity, ncovCityDetail);
-                        ncovMap.put(yearMonthDay, ncovCityDetailMap);
-                    }else {
-//                        System.out.println("重复条目， 忽略：" + JSON.toJSONString(detail));
-                    }
-                }else {
-                    //新增
-                    ncovCityDetailMap.put(provCity, ncovCityDetail);
-                    ncovMap.put(yearMonthDay, ncovCityDetailMap);
-                }
-            }else {
-                ncovCityDetailMap = new HashMap<>();
-                ncovCityDetailMap.put(provCity,ncovCityDetail);
-                ncovMap.put(yearMonthDay, ncovCityDetailMap);
+            String provCity = province + city;
 
+            //处理市
+            Map<String/*省市*/, NcovCityDetail> memCityDetailMap = new HashMap<>();
+            //如果年月日相同, 则相同的省市只能取一个最新的
+            if (yearMonthDayCityDetailMap.containsKey(yearMonthDay)) {
+                memCityDetailMap = yearMonthDayCityDetailMap.get(yearMonthDay);
+                //如果包含省市， 则判断省市的更新时间是否小于当前对象的时间
+                if (memCityDetailMap.containsKey(provCity)) {
+                    NcovCityDetail memCityDetail = memCityDetailMap.get(provCity);
+                    if (memCityDetail.getUpdateTime().getTime() < updateTime.getTime()) {
+                        memCityDetail = ncovCityDetail;
+                    } else {
+                        duplicateCount++;
+                        if (log.isDebugEnabled()) {
+                            log.debug("忽略，某天【{}】， 某个省市【{}】，为重复条目， 对象为{}", yearMonthDay, provCity, JSON.toJSONString(ncovCityDetail));
+                        }
+                        it.remove();
+                    }
+
+                } else {//否则， 新增
+                    memCityDetailMap.put(provCity, ncovCityDetail);
+                }
+
+            } else {
+                memCityDetailMap.put(provCity, ncovCityDetail);
             }
+            yearMonthDayCityDetailMap.put(yearMonthDay, memCityDetailMap);
+            //添加所有的省市对象
+            allCityDetails.add(ncovCityDetail);
+
+
+            //处理省
+            Map<String/*省*/, NcovProvDetail> memProvDetailMap = new HashMap<>();
+            if (yearMonthDayProvDetailMap.containsKey(yearMonthDay)) {
+                memProvDetailMap = yearMonthDayProvDetailMap.get(yearMonthDay);
+                //如果包含省， 则判断省的更新时间是否小于当前对象的时间
+                if (memProvDetailMap.containsKey(province)) {
+                    NcovProvDetail provDetail = memProvDetailMap.get(province);
+                    if (provDetail.getUpdateTime().getTime() < updateTime.getTime()) {
+                        provDetail = simpleProvDetailBuilder(ncovCityDetail);
+                    } else {
+                        //忽略该条数据
+                    }
+                } else {
+                    memProvDetailMap.put(province, simpleProvDetailBuilder(ncovCityDetail));
+                    allProvDetails.add(simpleProvDetailBuilder(ncovCityDetail));
+                }
+
+            } else {
+                memProvDetailMap.put(province, simpleProvDetailBuilder(ncovCityDetail));
+                allProvDetails.add(simpleProvDetailBuilder(ncovCityDetail));
+            }
+            yearMonthDayProvDetailMap.put(yearMonthDay, memProvDetailMap);
+
         }
 
-        redisService.put(GITHUBU_DATA_REDIS_KEY,ncovMap);
+        //统一每个省的统计指标
+        handleProvinceStat(allCityDetails, yearMonthDayProvDetailMap);
+
+
+        log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
+                allCount, duplicateCount, ncovCityDetails.size(), (System.currentTimeMillis() - start));
+
+
+        redisService.put(GITHUBU_DATA_REDIS_KEY, yearMonthDayProvDetailMap);
     }
 
-    public void truncateTable() {
-        DsUtil.execute(TRUNCATE_DETAIL_TABLE);
+    /**
+     * 统计每天每个省的指标
+     *
+     * @param provCityMap
+     * @param yearMonthDayProvDetailMap
+     */
+    private void handleProvinceStat(List<NcovCityDetail> allCityDetails,
+                                    Map<String/*年月日*/, Map<String/*省*/, NcovProvDetail>> yearMonthDayProvDetailMap) {
+        yearMonthDayProvDetailMap.forEach((yearMonthDay, provDetailMap) -> {
+            Map<String/*省*/, NcovProvDetail> yearMonthDayProvDetail = yearMonthDayProvDetailMap.get(yearMonthDay);
+            yearMonthDayProvDetail.forEach((province, provDetail) -> {
+                Long confirmedCount = 0L;
+                Long suspectedCount = 0L;
+                Long curedCount = 0L;
+                Long deadCount = 0L;
+                List<NcovCityDetail> cities = provDetail.getCities();
+                if (cities == null) {
+                    cities = new ArrayList<>();
+                }
+                for (NcovCityDetail cityDetail : allCityDetails) {
+                    String tmpProvince = cityDetail.getProvinceName();
+                    Date updateTime = cityDetail.getUpdateTime();
+                    String tmpYearMonthDay = sdf3.format(updateTime);
+                    //如果是当天， 并且是同省，并且当前省下面不包含该对象，则添加
+                    if (tmpYearMonthDay.equals(yearMonthDay)
+                            && tmpProvince.equals(province)
+                            && !cities.contains(cityDetail)) {
+                        confirmedCount += cityDetail.getCityConfirmedCount();
+                        suspectedCount += cityDetail.getCitySuspectedCount();
+                        curedCount += cityDetail.getCityCuredCount();
+                        deadCount += cityDetail.getCityDeadCount();
+                        provDetail.setConfirmedCount(confirmedCount);
+                        provDetail.setSuspectedCount(suspectedCount);
+                        provDetail.setConfirmedCount(confirmedCount);
+                        provDetail.setCuredCount(curedCount);
+                        cities.add(cityDetail);
+                        provDetail.setCities(cities);
+                        yearMonthDayProvDetail.put(province, provDetail);
+                    }
+                }
+                ;
+            });
+        });
+
+//        System.out.println(JSON.toJSONString(yearMonthDayProvDetailMap,true));
+
     }
 
-    public void batchInsert() {
-        Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市*/>> ncovMap = (Map<String/*年月日*/, Map<String/*省市*/, NcovCityDetail/*省市*/>>)redisService.get(GITHUBU_DATA_REDIS_KEY);
+
+    /**
+     * 构建省对应的市， 用于查找省下面的市的一些数据统计， 如确诊人数、治愈人数等
+     *
+     * @param provCityMap
+     * @param ncovCityDetail
+     */
+    private void provCitiesMapBuilder(Map<String/*省*/, List<String>/*市*/> provCityMap,
+                                      NcovCityDetail ncovCityDetail) {
+        String provName = ncovCityDetail.getProvinceName();
+        List<String> provCitys = provCityMap.get(provName);
+        if (provCitys == null || provCitys.size() == 0) {
+            provCitys = new ArrayList<>();
+        }
+        if (!provCitys.contains(ncovCityDetail.getCityName())) {
+            provCitys.add(ncovCityDetail.getCityName());
+            provCityMap.put(provName, provCitys);
+        }
+    }
+
+    private NcovProvDetail simpleProvDetailBuilder(NcovCityDetail ncovCityDetail) {
+        NcovProvDetail provDetail = new NcovProvDetail();
+        provDetail.setProvinceName(ncovCityDetail.getProvinceName());
+        provDetail.setUpdateTime(ncovCityDetail.getUpdateTime());
+        return provDetail;
+    }
+
+
+    @Override
+    public void batchUpdate(List ncovCityDetails) {
+        Long start = System.currentTimeMillis();
+//        Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市*/>> ncovMap = (Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市*/>>)redisService.get(GITHUBU_DATA_REDIS_KEY);
         //插入次数，到99
         int insertcount = 0;
         //执行sql次数
@@ -233,63 +376,57 @@ public class NcovDetailService {
         //所有数量
         int allCount = 0;
         //单层遍历次数
-        int travelCount1 = 0;
-        StringBuilder sql = new StringBuilder(1024*500);
+        int travelCount = 0;
+        StringBuilder sql = new StringBuilder(1024 * 500);
         sql.append(INSERT_NCOV_SQL_PREFIX);
-        StringBuilder valueSql = new StringBuilder(1024*500);
-        for(Map.Entry<String,Map<String, NcovCityDetail>> entry: ncovMap.entrySet()){
+        StringBuilder valueSql = new StringBuilder(1024 * 500);
+        List<NcovCityDetail> addrDetails = (List<NcovCityDetail>) ncovCityDetails;
+        for (NcovCityDetail detail : addrDetails) {
+            valueSql.append("(")
+                    .append("'").append(detail.getProvinceName()).append("'").append(",")
+                    .append("'").append(detail.getCityName()).append("'").append(",")
+                    .append(detail.getProvinceConfirmedCount()).append(",")
+                    .append(detail.getProvinceSuspectedCount()).append(",")
+                    .append(detail.getProvinceCuredCount()).append(",")
+                    .append(detail.getProvinceDeadCount()).append(",")
+                    .append(detail.getCityConfirmedCount()).append(",")
+                    .append(detail.getCitySuspectedCount()).append(",")
+                    .append(detail.getCityCuredCount()).append(",")
+                    .append(detail.getCityDeadCount()).append(",")
+                    .append("'").append(sdf2.format(detail.getUpdateTime())).append("'")
+                    .append(")");
 
-            Map<String, NcovCityDetail> ncovDetailMap = entry.getValue();
+            if (insertcount == 99) {
+                valueSql.append(";");
+                DsUtil.execute(sql.append(valueSql).toString());
 
-            allCount = allCount+ncovDetailMap.size();
-            System.out.println("当前日期:"+entry.getKey()+"，第【"+travelCount1+"】轮遍历，"+", 条数 = "+ncovDetailMap.size()+", 总条数 = "+(allCount));
-            for(Map.Entry<String, NcovCityDetail> detailEntry : ncovDetailMap.entrySet()){
-                NcovCityDetail detail = detailEntry.getValue();
-                valueSql.append("(")
-                        .append("'").append(detail.getProvinceName()).append("'").append(",")
-                        .append("'").append(detail.getCityName()).append("'").append(",")
-                        .append(detail.getProvinceConfirmedCount()).append(",")
-                        .append(detail.getProvinceSuspectedCount()).append(",")
-                        .append(detail.getProvinceCuredCount()).append(",")
-                        .append(detail.getProvinceDeadCount()).append(",")
-                        .append(detail.getCityConfirmedCount()).append(",")
-                        .append(detail.getCitySuspectedCount()).append(",")
-                        .append(detail.getCityCuredCount()).append(",")
-                        .append(detail.getCityDeadCount()).append(",")
-                        .append("'").append(sdf2.format(detail.getUpdateTime())).append("'")
-                        .append(")");
-
-                if(insertcount == 99) {
-                    valueSql.append(";");
-                    DsUtil.execute(sql.append(valueSql).toString());
-
-                    insertcount = 0;
-                    executeSqlNum++;
-                    //清空
-                    valueSql = new StringBuilder(1024*50);
-                    sql = new StringBuilder(1024*500);
-                    sql.append(INSERT_NCOV_SQL_PREFIX);
-                }else {
-                    valueSql.append(",");
-                    insertcount++;
-                }
+                insertcount = 0;
+                executeSqlNum++;
+                //清空
+                valueSql = new StringBuilder(1024 * 50);
+                sql = new StringBuilder(1024 * 500);
+                sql.append(INSERT_NCOV_SQL_PREFIX);
+            } else {
+                valueSql.append(",");
+                insertcount++;
             }
-            travelCount1++;
 
-            if(travelCount1 == ncovMap.size() && valueSql.length() != 0){
-                String s = valueSql.substring(0,valueSql.length()-1);
+            travelCount++;
+
+            if (travelCount == addrDetails.size() && valueSql.length() != 0) {
+                String s = valueSql.substring(0, valueSql.length() - 1);
                 DsUtil.execute(sql.append(s).toString());
                 executeSqlNum++;
             }
         }
-        redisService.put(GITHUBU_DATA_REDIS_KEY,ncovMap);
 
-        System.out.println("遍历【"+travelCount1+"】次，执行sql【"+executeSqlNum+"】次，总共数量【"+allCount+"】");
+        log.info("执行sql【{}】次，总共数量【{}】, 执行数据库总花费【{}】毫秒"
+                , executeSqlNum, travelCount, (System.currentTimeMillis() - start));
     }
 
     public void emptyBufferSql(StringBuilder sql, StringBuilder valueSql) {
-        valueSql = new StringBuilder(1024*50);
-        sql = new StringBuilder(1024*500);
+        valueSql = new StringBuilder(1024 * 50);
+        sql = new StringBuilder(1024 * 500);
         sql.append(INSERT_NCOV_SQL_PREFIX);
     }
 

@@ -17,8 +17,13 @@ class NcovDetailApplicationTests {
 
     @Test
     public void initData() throws Exception{
-        ncovService.initJson();
-        ncovService.initCsvData();
+        ncovService.initDataFromLocal();
+
+    }
+
+    @Test
+    public void updateData(){
+
     }
 
 }

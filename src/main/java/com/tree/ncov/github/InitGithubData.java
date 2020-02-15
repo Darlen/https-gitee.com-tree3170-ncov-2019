@@ -83,7 +83,7 @@
 //    private static void initCsvData() throws Exception{
 //        readFile();
 //        truncateTable();
-//        batchInsert(ncovMap);
+//        batchUpdate(ncovMap);
 //    }
 //
 //
@@ -165,7 +165,7 @@
 //        DsUtil.execute(TRUNCATE_DETAIL_TABLE);
 //    }
 //
-//    private static void batchInsert(Map<String, Map<String, NcovCityDetail>> ncovMap) {
+//    private static void batchUpdate(Map<String, Map<String, NcovCityDetail>> ncovMap) {
 //        //插入次数，到99
 //        int insertcount = 0;
 //        //执行sql次数

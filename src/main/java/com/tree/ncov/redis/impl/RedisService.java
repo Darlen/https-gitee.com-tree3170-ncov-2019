@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
  * @Date 2019-05-26 13:16
  * @Version 1.0
  */
+@Service
 public class RedisService implements IRedisService, IHashRedisService, IStringRedisService, IListRedisService, ISetRedisService {
 
     @Autowired

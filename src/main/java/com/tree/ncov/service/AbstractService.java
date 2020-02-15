@@ -1,7 +1,7 @@
 package com.tree.ncov.service;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @ClassName com.tree.ncov.service
@@ -15,30 +15,54 @@ import java.util.Map;
  */
 public abstract class AbstractService {
 
+    public  void initDataFromLocal() throws IOException{
+        initTable();
+        batchUpdate(readFileFromLocal());
+    }
+
+    public  void initDataFromRemote() throws IOException{
+        initTable();
+        batchUpdate(readFileFromRemote());
+    }
+
+    public void compareAndUpdate() throws Exception {
+
+    }
+
     /**
      * 下载文件
      */
-    abstract void downloadFile();
+    public  void downloadFile2Local() throws IOException{
+
+    }
 
     /**
      * 读取本地文件
      */
-    abstract void readLocalFile();
+    public abstract List readFileFromLocal() throws IOException;
 
     /**
      * 从远程读取数据
      */
-    List readRemoteJsonFile ;
+    public abstract List readFileFromRemote() throws IOException;
+
+    /**
+     *
+     * @param ncovList
+     */
+    public abstract void putDataInRedis(List ncovList);
 
     /**
      * 初始化表， 如truncate table
      */
-    abstract void initTable();
+    public abstract void initTable();
 
     /**
      * 批量插入数据到数据库
      */
-    abstract void batchInsert();
+    public abstract void batchUpdate(List ncovList);
+
+
 
 
 }

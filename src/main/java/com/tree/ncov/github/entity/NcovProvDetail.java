@@ -2,6 +2,8 @@ package com.tree.ncov.github.entity;
 
 import lombok.Data;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -23,6 +25,12 @@ public class NcovProvDetail {
     private Long suspectedCount;
     private Long curedCount;
     private Long deadCount;
+    private Date updateTime;
     List<NcovCityDetail>  cities;
+
+    public static void main(String[] args) {
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        System.out.println(simpleDateFormat.format(new Date(1580996305888L)));
+    }
 
 }
