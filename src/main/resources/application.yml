@@ -3,3 +3,18 @@ spring:
     host: 127.0.0.1
     password: tree
     port: 6379
+ncov:
+  base: /Users/tree/Desktop/ncov/
+  cbndata:
+    url: https://assets.cbndata.org/2019-nCoV/data.json
+    csv-file: ncov_addr_detail.csv
+  githubdata:
+    json:
+      url: https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json
+      file: DXYArea.json
+    zip:
+      url:
+    csv:
+      file: DXYArea.csv
+
+

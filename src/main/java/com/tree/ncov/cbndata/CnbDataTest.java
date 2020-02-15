@@ -1,6 +1,7 @@
 package com.tree.ncov.cbndata;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.tree.ncov.Util.DsUtil;
 import com.tree.ncov.cbndata.entity.NcovAddrDetail;
 import com.tree.ncov.cbndata.entity.NcovResult;
@@ -38,9 +39,9 @@ public class CnbDataTest {
 
 
     public static void main(String[] args) throws IOException {
-
-        downloadCsv();
+//        downloadJson2CsvToLocal();
         readLocalCsv();
+//        readRemoteJsonFile();
         truncateTable();
         batchInsert(addrDetailMap);
     }
@@ -52,7 +53,6 @@ public class CnbDataTest {
     private static void readLocalCsv() throws IOException{
 
         FileReader fileReader = new FileReader(new File(CBN_DATA_CSV_FILE_PATH));
-
         BufferedReader br = new BufferedReader(fileReader);
 
         String line = null;
@@ -90,7 +90,7 @@ public class CnbDataTest {
             if(!addrDetailMap.containsKey(addr)) {
                 addrDetailMap.put(addr, addrDetail);
             }else {
-                System.out.println("重复地址， 忽略："+ JSON.toJSONString(addrDetail));
+                System.out.println("重复地址， 忽略："+ JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
             }
 
             i++;
@@ -148,24 +148,40 @@ public class CnbDataTest {
         sql.append(INSERT_NCOV_SQL_ADDR_PREFIX);
     }
 
-    private static void downloadCsv() throws IOException{
+    private static List<NcovAddrDetail> readRemoteJsonFile() throws IOException{
         RestTemplate restTemplate = new RestTemplate();
         NcovResult o = restTemplate.getForObject(CBN_DATA_URL, NcovResult.class);
 
         List<NcovAddrDetail> ncovAddrDetails = o.getData();
         Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
+        int duplicateCount = 0;
+        int allCount = ncovAddrDetails.size();
         while (it.hasNext()){
-            NcovAddrDetail detail  = it.next();
-            if(StringUtils.isEmpty(detail.getAddress())
-                    ||StringUtils.isEmpty(detail.getLongitude())
-                    |StringUtils.isEmpty(detail.getLatitude())){
+            NcovAddrDetail addrDetail  = it.next();
+            if(StringUtils.isEmpty(addrDetail.getAddress())
+                    ||StringUtils.isEmpty(addrDetail.getLongitude())
+                    |StringUtils.isEmpty(addrDetail.getLatitude())){
+                duplicateCount++;
+                System.out.println("无效数据， 忽略："+ JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
                 it.remove();
+                continue;
+            }
+            if(!addrDetailMap.containsKey(addrDetail.getAddress())) {
+                addrDetailMap.put(addrDetail.getAddress(), addrDetail);
+            }else {
+                duplicateCount++;
+                System.out.println("重复地址， 忽略："+ JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
             }
         }
 
-        System.out.println(ncovAddrDetails.size());
+        System.out.println("总条数【"+allCount+"】， 重复条数【"+duplicateCount+"】， 实际条数【"+addrDetailMap.size()+"】");
+        return ncovAddrDetails;
+    }
 
-        FileUtils.writeStringToFile(new File(CBN_DATA_CSV_FILE_PATH), Json2Csv( JSON.toJSONString(ncovAddrDetails)));
+    private static void downloadJson2CsvToLocal() throws IOException{
+        List<NcovAddrDetail> ncovAddrDetails = readRemoteJsonFile();
+        FileUtils.writeStringToFile(new File(CBN_DATA_CSV_FILE_PATH),
+                Json2Csv(JSON.toJSONString(ncovAddrDetails)));
     }
 
     public static String Json2Csv(String jsonstr) throws JSONException {
