@@ -1,5 +1,6 @@
 package com.tree.ncov.service;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,14 +26,19 @@ public abstract class AbstractService {
     abstract void readLocalFile();
 
     /**
+     * 从远程读取数据
+     */
+    List readRemoteJsonFile ;
+
+    /**
      * 初始化表， 如truncate table
      */
     abstract void initTable();
 
     /**
      * 批量插入数据到数据库
-     * @param map
      */
-    abstract void batchInsert(Map<String, Object> map);
+    abstract void batchInsert();
+
 
 }

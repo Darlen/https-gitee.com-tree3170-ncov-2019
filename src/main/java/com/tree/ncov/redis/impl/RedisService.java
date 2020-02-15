@@ -103,6 +103,11 @@ public class RedisService implements IRedisService, IHashRedisService, IStringRe
     }
 
     @Override
+    public void put(String key, Object value) {
+        redisTemplate.opsForValue().set(key,value);
+    }
+
+    @Override
     public void put(String key, Object value, int seconds) {
         redisTemplate.opsForValue().set(key,value,seconds,TimeUnit.SECONDS);
     }

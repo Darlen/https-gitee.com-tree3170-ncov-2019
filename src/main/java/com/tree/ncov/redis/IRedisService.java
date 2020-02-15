@@ -21,6 +21,8 @@ public interface IRedisService {
 
     DataType getValueType(String key);
 
+    void put(String key, Object value);
+
     void put(String key, Object value, int seconds);
 
     void put(String key, String value, int seconds);
