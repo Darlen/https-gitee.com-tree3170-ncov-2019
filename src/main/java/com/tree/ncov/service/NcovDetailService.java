@@ -2,6 +2,8 @@ package com.tree.ncov.service;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.tree.ncov.Util.DsUtil;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountryResult;
@@ -13,10 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -82,20 +81,20 @@ public class NcovDetailService extends AbstractService {
             Date updateTime = remoteProvDetail.getUpdateTime();
             String yearMonthDay = sdf3.format(updateTime);
             //当天对象
-            Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayprovDetailMap =
-                    (Map<String, JSONObject> )redisService.get(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+":"+yearMonthDay);
+            Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap =
+                    (Map<String, JSONObject> )redisService.get(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay);
 
             //如果当天数据为空，则新增
-            if(curDayprovDetailMap == null || curDayprovDetailMap.size() == 0){
+            if(curDayProvDetailMap == null || curDayProvDetailMap.size() == 0){
                 //新增
                 batchUpdate(remoteProvDetail.getCities());
                 //TODO 增加省
-                curDayprovDetailMap.put(province,JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
-                redisService.put(yearMonthDay,curDayprovDetailMap);
+                curDayProvDetailMap.put(province,JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
+                redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay,curDayProvDetailMap);
             }
 
             //如果当前数据不为空， 且update时间 > redis中时间，则更新
-            JSONObject jsonObject = curDayprovDetailMap.get(province);
+            JSONObject jsonObject = curDayProvDetailMap.get(province);
             NcovProvDetail redisProvDetail = JSON.toJavaObject(jsonObject, NcovProvDetail.class);
             if(updateTime.getTime() > redisProvDetail.getUpdateTime().getTime()){
                 //更新
@@ -124,10 +123,11 @@ public class NcovDetailService extends AbstractService {
             Date updateTime = provDetail.getUpdateTime();
             List<NcovCityDetail> cityDetails = provDetail.getCities();
             cityDetails.forEach(cityDetail -> {
+                cityDetail.setProvCurConfirmCount(provDetail.getCurConfirmCount());
                 cityDetail.setProvinceConfirmedCount(provDetail.getConfirmedCount());
-                cityDetail.setCitySuspectedCount(provDetail.getSuspectedCount());
-                cityDetail.setCityDeadCount(provDetail.getDeadCount());
-                cityDetail.setCityCuredCount(provDetail.getCuredCount());
+                cityDetail.setProvinceSuspectedCount(provDetail.getSuspectedCount());
+                cityDetail.setProvinceDeadCount(provDetail.getDeadCount());
+                cityDetail.setProvinceCuredCount(provDetail.getCuredCount());
                 cityDetail.setUpdateTime(updateTime);
                 cityDetail.setProvinceName(provDetail.getProvinceName());
             });
@@ -137,8 +137,6 @@ public class NcovDetailService extends AbstractService {
     @Override
     public List readFileFromLocal() throws IOException {
         long start = System.currentTimeMillis();
-        FileReader fileReader = new FileReader(new File(GITHUB_DATA_CSV_FILE_PATH));
-        BufferedReader br = new BufferedReader(fileReader);
 
         String line = null;
         int i = 0;
@@ -146,45 +144,68 @@ public class NcovDetailService extends AbstractService {
         String province = null;
         String city = null;
         List<NcovCityDetail> ncovCityDetails = new ArrayList<>();
-        while ((line = br.readLine()) != null) {
-            //第一行为表头， 忽略
-            if (i == 0) {
-                i++;
-                continue;
-            }
-            String[] data = line.split(",");
-            detail = new NcovCityDetail();
-            province = data[0];
-            city = data[1];
-            detail.setProvinceName(province);
-            detail.setCityName(data[1]);
-            detail.setProvinceConfirmedCount(Long.valueOf(data[2]));
-            detail.setProvinceSuspectedCount(Long.valueOf(data[3]));
-            detail.setProvinceCuredCount(Long.valueOf(data[4]));
-            detail.setProvinceDeadCount(Long.valueOf(data[5]));
+        //issue : 由于csv有的字段中包含逗号，正常读取每行已经无法用逗号分隔来计算 故引入opencsv
+        try (CSVReader csvReader = new CSVReaderBuilder(new BufferedReader
+                (new InputStreamReader(new FileInputStream(new File(GITHUB_DATA_CSV_FILE_PATH)), "UTF-8")))
+                .build()) {
+            Iterator<String[]> iterator = csvReader.iterator();
+            while (iterator.hasNext()) {
 
-            detail.setCityConfirmedCount(Long.valueOf(data[6]));
-            detail.setCitySuspectedCount(Long.valueOf(data[7]));
-            detail.setCityCuredCount(Long.valueOf(data[8]));
-            detail.setCityDeadCount(Long.valueOf(data[9]));
-            Date updateTime = null;
-            try {
-                updateTime = sdf.parse(data[10]);
-            } catch (Exception e) {
-                try {
-                    updateTime = sdf2.parse(data[10]);
-                } catch (Exception e1) {
-                    System.err.println(data[10] + "===" + JSON.toJSONString(detail));
+                //第一行为表头， 忽略
+            /*
+            provinceName	provinceEnglishName	cityName	cityEnglishName
+            province_confirmedCount	province_suspectedCount	province_curedCount	province_deadCount
+            city_confirmedCount	city_suspectedCount	city_curedCount	city_deadCount	updateTime
+
+            provinceName	provinceEnglishName	cityName	cityEnglishName
+            province_confirmedCount	province_suspectedCount	province_curedCount	province_deadCount	city_confirmedCount	city_suspectedCount	city_curedCount	city_deadCount	updateTime
+             */
+                String[] data = iterator.next();
+                if (i == 0) {
+                    i++;
+                    continue;
                 }
+                detail = new NcovCityDetail();
+                province = data[0];
+                city = data[2];
+                detail.setProvinceName(province);
+                detail.setCityName(city);
+                try {
+                    detail.setProvinceConfirmedCount(Long.valueOf(data[4]));
+                    detail.setProvinceSuspectedCount(Long.valueOf(data[5]));
+                    detail.setProvinceCuredCount(Long.valueOf(data[6]));
+                    detail.setProvinceDeadCount(Long.valueOf(data[7]));
+
+                    detail.setCityConfirmedCount(Long.valueOf(data[8]));
+                    detail.setCitySuspectedCount(Long.valueOf(data[9]));
+                    detail.setCityCuredCount(Long.valueOf(data[10]));
+                    detail.setCityDeadCount(Long.valueOf(data[11]));
+                }catch (NumberFormatException e){
+                    System.err.println("===line" + line);
+                    throw e;
+                }
+
+                Date updateTime = null;
+                try {
+                    updateTime = sdf.parse(data[12]);
+                } catch (Exception e) {
+                    try {
+                        updateTime = sdf2.parse(data[12]);
+                    } catch (Exception e1) {
+                        System.err.println(data[12] + "===" + JSON.toJSONString(detail));
+                    }
+                }
+                detail.setUpdateTime(updateTime);
+                ncovCityDetails.add(detail);
+
+                String yearMonthDay = sdf3.format(updateTime);
+                String provCity = province + city;
+
+                i++;
             }
-            detail.setUpdateTime(updateTime);
-            ncovCityDetails.add(detail);
-
-            String yearMonthDay = sdf3.format(updateTime);
-            String provCity = province + city;
-
-            i++;
         }
+
+
 
         putDataInRedis(ncovCityDetails);
         log.info("==>执行[readFileFromLocal] 总花费时间：{}", (System.currentTimeMillis() - start));
@@ -327,12 +348,8 @@ public class NcovDetailService extends AbstractService {
         //统一每个省的统计指标
         handleProvinceStat(allCityDetails, yearMonthDayProvDetailMap);
 
-
         log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
                 allCount, duplicateCount, ncovCityDetails.size(), (System.currentTimeMillis() - start));
-
-
-//        redisService.put(GITHUBU_DATA_REDIS_KEY, yearMonthDayProvDetailMap);
     }
 
     /**
@@ -344,7 +361,6 @@ public class NcovDetailService extends AbstractService {
     private void handleProvinceStat(List<NcovCityDetail> allCityDetails,
                                     Map<String/*年月日*/, Map<String/*省*/, NcovProvDetail>> yearMonthDayProvDetailMap) {
         yearMonthDayProvDetailMap.forEach((yearMonthDay, provDetailMap) -> {
-//            Map<String/*省*/, NcovProvDetail> yearMonthDayProvDetail = yearMonthDayProvDetailMap.get(yearMonthDay);
             provDetailMap.forEach((province, provDetail) -> {
                 Long confirmedCount = 0L;
                 Long suspectedCount = 0L;
@@ -378,11 +394,8 @@ public class NcovDetailService extends AbstractService {
                 ;
             });
             //按每天的省放入对象
-            redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+":"+yearMonthDay,provDetailMap);
+            redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay,provDetailMap);
         });
-
-//        System.out.println(JSON.toJSONString(yearMonthDayProvDetailMap,true));
-
     }
 
 
@@ -415,6 +428,7 @@ public class NcovDetailService extends AbstractService {
 
     @Override
     public void batchUpdate(List ncovCityDetails) {
+
         Long start = System.currentTimeMillis();
 //        Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市*/>> ncovMap = (Map<String/*年月日*/, Map<String/*省市*/, JSONObject/*省市*/>>)redisService.get(GITHUBU_DATA_REDIS_KEY);
         //插入次数，到99
@@ -433,10 +447,12 @@ public class NcovDetailService extends AbstractService {
             valueSql.append("(")
                     .append("'").append(detail.getProvinceName()).append("'").append(",")
                     .append("'").append(detail.getCityName()).append("'").append(",")
+                    .append(detail.getProvCurConfirmCount()).append(",")
                     .append(detail.getProvinceConfirmedCount()).append(",")
                     .append(detail.getProvinceSuspectedCount()).append(",")
                     .append(detail.getProvinceCuredCount()).append(",")
                     .append(detail.getProvinceDeadCount()).append(",")
+                    .append(detail.getCityCurConfirmCount()).append(",")
                     .append(detail.getCityConfirmedCount()).append(",")
                     .append(detail.getCitySuspectedCount()).append(",")
                     .append(detail.getCityCuredCount()).append(",")

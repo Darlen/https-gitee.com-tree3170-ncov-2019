@@ -37,8 +37,19 @@ public interface Constants {
 
     String GITHUB_DATA_URL = "https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json";
 //    String GITHUBU_DATA_REDIS_KEY = "ncov:github";
-//    String GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY = "ncov:github:province";
-    String GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY = "ncov:github:city";
+    String GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY = "ncov:github:province:";
+    /**
+     * 每天省的新增或修改的统计数量
+     */
+    String GITHUBU_DATA_PROVICE_BY_DAY_NEW_REDIS_KEY = GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY+"day:";
+    /**
+     * 每天省的所有统计数量
+     */
+    String GITHUBU_DATA_PROVICE_BY_DAY_ALL_REDIS_KEY = GITHUBU_DATA_PROVICE_BY_DAY_REDIS_KEY+"all:";
+    /**
+     * 每天城市的新增统计数量
+     */
+    String GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY = "ncov:github:city:";
     String GITHUB_DATA_CSV_FILE_NAME = "DXYArea.csv";
     String GITHUB_DATA_JSON_FILE_NAME = "DXYArea.json";
     String GITHUB_DATA_CSV_FILE_PATH = BASE_FOLDER+ GITHUB_DATA_CSV_FILE_NAME;
@@ -54,16 +65,18 @@ public interface Constants {
      * 插入ncov_detail前缀
      */
     String INSERT_NCOV_SQL_PREFIX="INSERT INTO ncov_detail (\n" +
-            "\tprovinceName,\n" +
-            "\tcityName,\n" +
-            "\tprovince_confirmedCount,\n" +
-            "\tprovince_suspectedCount,\n" +
-            "\tprovince_curedCount,\n" +
-            "\tprovince_deadCount,\n" +
-            "\tcity_confirmedCount,\n" +
-            "\tcity_suspectedCount,\n" +
-            "\tcity_curedCount,\n" +
-            "\tcity_deadCount,\n" +
+            "\tprovince_name,\n" +
+            "\tcity_name,\n" +
+            "\tprovince_cur_confirmed_count,\n" +
+            "\tprovince_confirmed_count,\n" +
+            "\tprovince_suspected_count,\n" +
+            "\tprovince_cured_count,\n" +
+            "\tprovince_dead_count,\n" +
+            "\tcity_cur_confirmed_count,\n" +
+            "\tcity_confirmed_count,\n" +
+            "\tcity_suspected_count,\n" +
+            "\tcity_cured_count,\n" +
+            "\tcity_dead_count,\n" +
             "\tupdateTime\n" +
             ")\n" +
             "VALUES";

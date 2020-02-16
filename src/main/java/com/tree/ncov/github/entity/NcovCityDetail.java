@@ -22,10 +22,12 @@ public class NcovCityDetail {
     private String provinceName;
     private String provinceShortName;
     private String cityName;
+    private Long provCurConfirmCount;
     private Long provinceConfirmedCount;
     private Long provinceSuspectedCount;
     private Long provinceCuredCount;
     private Long provinceDeadCount;
+    private Long cityCurConfirmCount;
     private Long cityConfirmedCount;
     private Long citySuspectedCount;
     private Long cityCuredCount;

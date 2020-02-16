@@ -21,6 +21,7 @@ public class NcovProvDetail {
     private String country = "中国";
     private String provinceName;
     private String provinceShortName;
+    private Long curConfirmCount;
     private Long confirmedCount;
     private Long suspectedCount;
     private Long curedCount;
