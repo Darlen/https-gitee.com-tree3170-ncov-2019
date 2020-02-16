@@ -17,6 +17,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
@@ -29,6 +30,7 @@ import java.util.Map;
 /**
  * @author tree
  */
+@EnableScheduling
 @SpringBootApplication(exclude = MongoAutoConfiguration.class)
 public class NcovDemoApplication {
 

@@ -12,6 +12,7 @@ import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -39,8 +40,41 @@ public class NcovDetailService extends AbstractService {
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
 
+    @Value("${ncov.githubdata.from}")
+    private String from;
+
+    @Value("${ncov.githubdata.remote.json.url}")
+    private String remoteJsonUrl;
+
+    @Value("${ncov.githubdata.remote.json.filename}")
+    private String remoteJsonFilename;
+
+    @Value("${ncov.githubdata.remote.zip.url}")
+    private String remoteZipUrl;
+
+    @Value("${ncov.githubdata.remote.zip.filename}")
+    private String remoteZipFilename;
+
+    @Value("${ncov.githubdata.local.json.url}")
+    private String localJsonUrl;
+
+    @Value("${ncov.githubdata.local.json.filename}")
+    private String localJsonFilename;
+
+    @Value("${ncov.githubdata.local.csv.url}")
+    private String localCsvUrl;
+
+    @Value("${ncov.githubdata.local.csv.filename}")
+    private String localCsvFilename;
+
+
+
+
     @Autowired
     private RedisService redisService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
 
     /**
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
@@ -58,7 +92,6 @@ public class NcovDetailService extends AbstractService {
      *
      * @throws Exception
      */
-    @Scheduled
     @Override
     public void compareAndUpdate() throws Exception {
         List<NcovProvDetail> remoteChinaProvDetails = readFileFromRemote();
@@ -102,10 +135,10 @@ public class NcovDetailService extends AbstractService {
                 //TODO 更新省
 
                 //删除当天的这个省份的所有数据，
-
                 String mysqlDeleteSql = "delete from ncov_detail where provinceName='"+province+"', TO_DAYS(updateTime) = TO_DAYS('"+sdf2.format(updateTime)+"')";
                 String pgDeleteSql = "delete FROM ncov_detail WHERE finish_time BETWEEN TIMESTAMP'"+yearMonthDay+"' AND TIMESTAMP'"+yearMonthDay+" 23:59:59'";
-                DsUtil.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql, null);
+//                DsUtil.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql, null);
+                jdbcTemplate.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql);
                 //插入当前的这个省份的所有数据
                 batchUpdate(remoteCities);
             }
@@ -462,7 +495,8 @@ public class NcovDetailService extends AbstractService {
 
             if (insertcount == 99) {
                 valueSql.append(";");
-                DsUtil.execute(sql.append(valueSql).toString(),null);
+//                DsUtil.execute(sql.append(valueSql).toString(),null);
+                jdbcTemplate.execute(sql.append(valueSql).toString());
 
                 insertcount = 0;
                 executeSqlNum++;
@@ -479,7 +513,8 @@ public class NcovDetailService extends AbstractService {
 
             if (travelCount == addrDetails.size() && valueSql.length() != 0) {
                 String s = valueSql.substring(0, valueSql.length() - 1);
-                DsUtil.execute(sql.append(s).toString(),null);
+//                DsUtil.execute(sql.append(s).toString(),null);
+                jdbcTemplate.execute(sql.append(s).toString());
                 executeSqlNum++;
             }
         }

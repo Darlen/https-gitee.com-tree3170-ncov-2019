@@ -7,6 +7,8 @@ import com.tree.nebula.datasource.executor.QueryExecutorFactory;
 import com.tree.nebula.datasource.executor.RdsQueryExecutor;
 import com.tree.nebula.datasource.query.BoundSql;
 import com.tree.nebula.datasource.query.QueryContext;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -20,7 +22,9 @@ import java.util.List;
  * @Date 2020-02-14 16:08
  * @Version 1.0
  */
+@Component
 public class DsUtil {
+
     public static void execute(String sql, List<ParamDTO> params){
         DataSourceDTO dataSourceDTO = getDatasourceDto();
         RdsQueryExecutor executor = QueryExecutorFactory.getQueryExecutor(dataSourceDTO.getType());

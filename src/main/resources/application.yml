@@ -3,21 +3,42 @@ spring:
     host: 127.0.0.1
     password: tree
     port: 6379
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver #org.postgresql.Driver
+    username: root
+    password: root
+    url: jdbc:mysql://127.0.0.1:3306/user?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+    type: com.zaxxer.hikari.HikariDataSource
+
+#自定义配置
 ncov:
-  base: /Users/tree/Desktop/ncov/
-  truncate: false
+  base: /Users/tree/Desktop/ncov #base目录
+  truncate: false #是否自动清除
   ds:
-    name: pg
+    name: pg #使用数据库类型
   cbndata:
-    url: https://assets.cbndata.org/2019-nCoV/data.json
-    csv-file: ncov_addr_detail.csv
+    from: remote
+    remote:
+      filename: data.json
+      url: https://assets.cbndata.org/2019-nCoV/data.json
+    local:
+      filename: ncov_addr_detail.csv
+      url: ${ncov.base}/${ncov.cbndata.local.filename}
   githubdata:
-    json:
-      url: https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json
-      file: DXYArea.json
-    zip:
-      url:
-    csv:
-      file: DXYArea.csv
+    from: local
+    remote:
+      json:
+        url: https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json
+        filename: DXYArea.json
+      zip:
+        url: https://github.com/BlankerL/DXY-COVID-19-Data/archive/master.zip
+        filename: master.zip
+    local:
+      json:
+        filename: DXYArea.json
+        url: ${ncov.base}/${ncov.githubdata.local.json.filename}
+      csv:
+        filename: DXYArea.csv
+        url: ${ncov.base}/${ncov.githubdata.local.csv.filename}
 
 
