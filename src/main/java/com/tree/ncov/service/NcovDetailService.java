@@ -12,11 +12,13 @@ import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
+//import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -25,9 +27,9 @@ import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
 
 /**
  * @ClassName com.tree.ncov.service
- * Description: <类功能描述>. <br>
+ * Description:
  * <p>
- * <使用说明>
+ *
  * </p>
  * @Author tree
  * @Date 2020-02-15 11:50
@@ -39,6 +41,9 @@ public class NcovDetailService extends AbstractService {
 
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
+
+    @Value("${ncov.githubdata.truncate:false}")
+    boolean truncate;
 
     @Value("${ncov.githubdata.from}")
     private String from;
@@ -55,20 +60,23 @@ public class NcovDetailService extends AbstractService {
     @Value("${ncov.githubdata.remote.zip.filename}")
     private String remoteZipFilename;
 
+    /**
+     * 由于网络不通， 只能使用本地json文件
+     */
     @Value("${ncov.githubdata.local.json.url}")
     private String localJsonUrl;
 
     @Value("${ncov.githubdata.local.json.filename}")
     private String localJsonFilename;
 
+    /**
+     * 本地CSV文件
+     */
     @Value("${ncov.githubdata.local.csv.url}")
     private String localCsvUrl;
 
     @Value("${ncov.githubdata.local.csv.filename}")
     private String localCsvFilename;
-
-
-
 
     @Autowired
     private RedisService redisService;
@@ -84,7 +92,13 @@ public class NcovDetailService extends AbstractService {
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
 
-    //
+
+    @Override
+    public  void initDataFromRemote() throws Exception {
+        log.warn("*****************************");
+        log.warn("#由于远程只有当天的数据，该方法[initDataFromRemote]不支持从远程初始化数据#");
+        log.warn("*****************************");
+    }
 
     /**
      * 如果不是当天数据， 忽略
@@ -94,9 +108,15 @@ public class NcovDetailService extends AbstractService {
      */
     @Override
     public void compareAndUpdate() throws Exception {
+        //1. 读取远程文件
         List<NcovProvDetail> remoteChinaProvDetails = readFileFromRemote();
 
         handleRemoteData(remoteChinaProvDetails);
+
+        //2. 从redis获取当天对象
+        Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap =
+                (Map<String, JSONObject> )redisService.get(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY
+                        +sdf3.format(remoteChinaProvDetails.get(0).getUpdateTime()));
         /*
          * 按年月日存储所有省集合对象， 取每天省的最新数据
          *
@@ -104,48 +124,55 @@ public class NcovDetailService extends AbstractService {
          *     如果redis中没有包含年月日，则增加省，增加城市， 并更新redis
          *     否则远程的 省份更新时间 > redis中省份的更新时间， 则更新
          */
-
-        //获取redis数据
-//        Map<String/*年月日*/, Map<String/*省*/, JSONObject/*NcovProvDetail*/>> yearMonthDayProvDetailMap
-//                = (Map<String, Map<String, JSONObject>> )redisService.get(GITHUBU_DATA_REDIS_KEY);
-
         remoteChinaProvDetails.forEach(remoteProvDetail -> {
-            String province = remoteProvDetail.getProvinceName();
-            Date updateTime = remoteProvDetail.getUpdateTime();
-            String yearMonthDay = sdf3.format(updateTime);
-            //当天对象
-            Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap =
-                    (Map<String, JSONObject> )redisService.get(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay);
-
-            //如果当天数据为空，则新增
-            if(curDayProvDetailMap == null || curDayProvDetailMap.size() == 0){
-                //新增
-                batchUpdate(remoteProvDetail.getCities());
-                //TODO 增加省
-                curDayProvDetailMap.put(province,JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
-                redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay,curDayProvDetailMap);
-            }
-
-            //如果当前数据不为空， 且update时间 > redis中时间，则更新
-            JSONObject jsonObject = curDayProvDetailMap.get(province);
-            NcovProvDetail redisProvDetail = JSON.toJavaObject(jsonObject, NcovProvDetail.class);
-            if(updateTime.getTime() > redisProvDetail.getUpdateTime().getTime()){
-                //更新
-                List<NcovCityDetail> remoteCities = remoteProvDetail.getCities();
-                //TODO 更新省
-
-                //删除当天的这个省份的所有数据，
-                String mysqlDeleteSql = "delete from ncov_detail where provinceName='"+province+"', TO_DAYS(updateTime) = TO_DAYS('"+sdf2.format(updateTime)+"')";
-                String pgDeleteSql = "delete FROM ncov_detail WHERE finish_time BETWEEN TIMESTAMP'"+yearMonthDay+"' AND TIMESTAMP'"+yearMonthDay+" 23:59:59'";
-//                DsUtil.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql, null);
-                jdbcTemplate.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql);
-                //插入当前的这个省份的所有数据
-                batchUpdate(remoteCities);
-            }
+            //3. 处理
+            handleCompareResult(remoteProvDetail,curDayProvDetailMap);
 
         });
 
     }
+
+    /**
+     * 处理比较后的结果
+     * 算法：按年月日存储所有省集合对象， 取每天省的最新数据
+     *  如果redis中没有包含年月日，则增加省，增加城市， 并更新redis
+     *  否则远程的 省份更新时间 > redis中省份的更新时间， 则更新
+     *
+     * @param remoteProvDetail
+     * @param curDayProvDetailMap
+     */
+    private void handleCompareResult(NcovProvDetail remoteProvDetail,
+                Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap ) {
+        Date updateTime = remoteProvDetail.getUpdateTime();
+        String yearMonthDay = sdf3.format(updateTime);
+        String province = remoteProvDetail.getProvinceName();
+        //如果当天数据为空，则新增
+        if(curDayProvDetailMap == null || curDayProvDetailMap.size() == 0){
+            //新增
+            batchUpdate(remoteProvDetail.getCities());
+            //TODO 增加省
+            curDayProvDetailMap.put(province,JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
+            redisService.put(GITHUBU_DATA_CITY_BY_DAY_REDIS_KEY+yearMonthDay,curDayProvDetailMap);
+        }
+
+        //如果当前数据不为空， 且update时间 > redis中时间，则更新
+        JSONObject jsonObject = curDayProvDetailMap.get(province);
+        NcovProvDetail redisProvDetail = JSON.toJavaObject(jsonObject, NcovProvDetail.class);
+        if(updateTime.getTime() > redisProvDetail.getUpdateTime().getTime()){
+            //更新
+            List<NcovCityDetail> remoteCities = remoteProvDetail.getCities();
+            //TODO 更新省
+
+            //删除当天的这个省份的所有数据，
+            String mysqlDeleteSql = "delete from ncov_detail where provinceName='"+province+"', TO_DAYS(updateTime) = TO_DAYS('"+sdf2.format(updateTime)+"')";
+            String pgDeleteSql = "delete FROM ncov_detail WHERE finish_time BETWEEN TIMESTAMP'"+yearMonthDay+"' AND TIMESTAMP'"+yearMonthDay+" 23:59:59'";
+//                DsUtil.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql, null);
+            jdbcTemplate.execute("mysql".equals(dsName)? mysqlDeleteSql: pgDeleteSql);
+            //插入当前的这个省份的所有数据
+            batchUpdate(remoteCities);
+        }
+    }
+
 
     /**
      * 把省份相关的字段塞进城市中
@@ -170,20 +197,20 @@ public class NcovDetailService extends AbstractService {
     @Override
     public List readFileFromLocal() throws IOException {
         long start = System.currentTimeMillis();
-
         String line = null;
         int i = 0;
         NcovCityDetail detail = null;
         String province = null;
         String city = null;
         List<NcovCityDetail> ncovCityDetails = new ArrayList<>();
+        log.info("==>[readFileFromLocal], 读取本地CSV文件:{}",localCsvUrl);
         //issue : 由于csv有的字段中包含逗号，正常读取每行已经无法用逗号分隔来计算 故引入opencsv
         try (CSVReader csvReader = new CSVReaderBuilder(new BufferedReader
-                (new InputStreamReader(new FileInputStream(new File(GITHUB_DATA_CSV_FILE_PATH)), "UTF-8")))
+                //GITHUB_DATA_CSV_FILE_PATH
+                (new InputStreamReader(new FileInputStream(new File(localCsvUrl)), "UTF-8")))
                 .build()) {
             Iterator<String[]> iterator = csvReader.iterator();
             while (iterator.hasNext()) {
-
                 //第一行为表头， 忽略
             /*
             provinceName	provinceEnglishName	cityName	cityEnglishName
@@ -237,19 +264,23 @@ public class NcovDetailService extends AbstractService {
                 i++;
             }
         }
-
-
-
-        putDataInRedis(ncovCityDetails);
-        log.info("==>执行[readFileFromLocal] 总花费时间：{}", (System.currentTimeMillis() - start));
+//        putDataInRedis(ncovCityDetails);
+        log.info("==>执行[readFileFromLocal] 总花费时间【{}】毫秒", (System.currentTimeMillis() - start));
 
         return ncovCityDetails;
     }
 
+    /**
+     * 远程json是一天的数据， 故该方法仅用于做更新的时候使用(compareAndUpdate)
+     * @return
+     * @throws IOException
+     */
     @Override
     public List readFileFromRemote() throws IOException {
         long start = System.currentTimeMillis();
-        FileReader fileReader = new FileReader(new File(GITHUB_DATA_JSON_FILE_PATH));
+        log.info("==>[readFileFromRemote], 读取远程JSON文件， 注意由于github网络不通，从本地文件读取:{}",localJsonUrl);
+        //注意：由于github不通， 只能到本地读取json文件
+        FileReader fileReader = new FileReader(new File(localJsonUrl));
         BufferedReader br = new BufferedReader(fileReader);
         String line = null;
         StringBuilder sb = new StringBuilder(1024 * 50);
@@ -263,21 +294,22 @@ public class NcovDetailService extends AbstractService {
         Map<String/*省*/, List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
 
         provDetails.forEach(ncovProvDetail -> {
+            //只获取国家为中国的数据
             if (ncovProvDetail.getCountry().indexOf("中国") != -1) {
                 chinaProvDetails.add(ncovProvDetail);
                 chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
             }
         });
-
-
-        log.info("==>执行[readFileFromRemote] 总花费时间：{}", (System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费时间：{}", (System.currentTimeMillis() - start));
         return chinaProvDetails;
     }
 
 
     @Override
     public void initTable() {
-        DsUtil.execute(TRUNCATE_DETAIL_TABLE,null);
+        if(truncate) {
+            DsUtil.execute(TRUNCATE_DETAIL_TABLE, null);
+        }
     }
 
 
@@ -495,9 +527,13 @@ public class NcovDetailService extends AbstractService {
 
             if (insertcount == 99) {
                 valueSql.append(";");
+                try {
 //                DsUtil.execute(sql.append(valueSql).toString(),null);
-                jdbcTemplate.execute(sql.append(valueSql).toString());
-
+                    jdbcTemplate.execute(sql.append(valueSql).toString());
+                }catch (DataAccessException e){
+                    log.error("==>[batchUpdate] occurs error. sql = {}",sql,e);
+                    throw new RuntimeException(e);
+                }
                 insertcount = 0;
                 executeSqlNum++;
                 //清空

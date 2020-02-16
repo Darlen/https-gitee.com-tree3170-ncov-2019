@@ -14,6 +14,9 @@ class NcovDetailApplicationTests {
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
 
+    @Value("${ncov.githubdata.truncate}")
+    boolean truncate;
+
     @Value("${ncov.githubdata.from}")
     private String from;
 
@@ -45,6 +48,10 @@ class NcovDetailApplicationTests {
     void contextLoads() {
     }
 
+    /**
+     * 初始化从local， remote只做update， 因为local是所有数据，remote是每天的数据
+     * @throws Exception
+     */
     @Test
     public void initData() throws Exception{
         ncovService.initDataFromLocal();
@@ -52,16 +59,17 @@ class NcovDetailApplicationTests {
 
     @Test
     public void updateData(){
-        System.out.println(dsName);
-        System.out.println(from);
-        System.out.println(remoteJsonUrl);
-        System.out.println(remoteJsonFilename);
-        System.out.println(remoteZipUrl);
-        System.out.println(remoteZipFilename);
-        System.out.println(localJsonUrl);
-        System.out.println(localJsonFilename);
-        System.out.println(localCsvFilename);
-        System.out.println(localCsvUrl);
+        System.out.println("dsName="+dsName);
+        System.out.println("truncate="+truncate);
+        System.out.println("from="+from);
+        System.out.println("remoteJsonUrl="+remoteJsonUrl);
+        System.out.println("remoteJsonFilename="+remoteJsonFilename);
+        System.out.println("remoteZipUrl="+remoteZipUrl);
+        System.out.println("remoteZipFilename="+remoteZipFilename);
+        System.out.println("localJsonUrl="+localJsonUrl);
+        System.out.println("localJsonFilename="+localJsonFilename);
+        System.out.println("localCsvFilename="+localCsvFilename);
+        System.out.println("localCsvUrl="+localCsvUrl);
     }
 
 }

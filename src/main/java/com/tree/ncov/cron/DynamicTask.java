@@ -17,9 +17,9 @@ import org.springframework.scheduling.annotation.Scheduled;
  * @Date 2020-02-16 12:30
  * @Version 1.0
  */
+
 @EnableScheduling
 @Configuration
-
 public class DynamicTask {
     @Autowired
     private NcovDetailService detailService;

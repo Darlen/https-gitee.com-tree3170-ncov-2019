@@ -13,11 +13,11 @@ spring:
 #自定义配置
 ncov:
   base: /Users/tree/Desktop/ncov #base目录
-  truncate: false #是否自动清除
   ds:
     name: pg #使用数据库类型
   cbndata:
     from: remote
+    truncate: true #是否自动清除
     remote:
       filename: data.json
       url: https://assets.cbndata.org/2019-nCoV/data.json
@@ -26,6 +26,7 @@ ncov:
       url: ${ncov.base}/${ncov.cbndata.local.filename}
   githubdata:
     from: local
+    truncate: true #是否自动清除
     remote:
       json:
         url: https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json

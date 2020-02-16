@@ -36,7 +36,7 @@ class NcovAddrApplicationTests {
     @Test
     public void initData() throws Exception{
 
-        ncovService.initDataFromLocal();
+//        ncovService.initDataFromLocal();
         ncovService.initDataFromRemote();
     }
 

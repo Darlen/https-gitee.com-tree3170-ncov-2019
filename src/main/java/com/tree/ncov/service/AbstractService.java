@@ -1,6 +1,7 @@
 package com.tree.ncov.service;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -15,17 +16,42 @@ import java.util.List;
  */
 public abstract class AbstractService {
 
+    /**
+     * 从本地加载文件初始化数据到数据库
+     * @throws IOException
+     */
     public  void initDataFromLocal() throws IOException{
+        //初始化表
         initTable();
-        batchUpdate(readFileFromLocal());
+        //从本地加载集合对象, 并简单处理
+        List list = readFileFromLocal();
+        //继续处理该集合对象， 并放入redis
+        putDataInRedis(list);
+        //放入数据库
+        batchUpdate(list);
     }
 
-    public  void initDataFromRemote() throws IOException{
+    /**
+     * 从远程加载文件并初始化到数据库
+     * @throws Exception
+     */
+    public  void initDataFromRemote() throws Exception {
+        //初始化表
         initTable();
-        batchUpdate(readFileFromRemote());
+        //从远程加载集合对象，并简单处理
+        List list = readFileFromRemote();
+        //继续处理该集合对象， 并放入redis
+        putDataInRedis(list);
+        //放入数据库
+        batchUpdate(list);
     }
 
     public void compareAndUpdate() throws Exception {
+        //读取远程数据
+
+        //读取redis数据
+
+        //对比
 
     }
 
