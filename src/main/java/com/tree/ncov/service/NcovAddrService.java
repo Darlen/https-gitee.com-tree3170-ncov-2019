@@ -3,7 +3,7 @@ package com.tree.ncov.service;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.tree.ncov.Util.DsUtil;
+//import com.tree.ncov.Util.DsUtil;
 import com.tree.ncov.cbndata.entity.NcovAddrDetail;
 import com.tree.ncov.cbndata.entity.NcovResult;
 import com.tree.ncov.redis.impl.RedisService;
@@ -14,6 +14,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -68,6 +69,8 @@ public class NcovAddrService extends AbstractService {
 
     @Autowired
     private RedisService redisService;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Override
     public void compareAndUpdate() throws Exception {
@@ -89,7 +92,8 @@ public class NcovAddrService extends AbstractService {
             }
             NcovAddrDetail redisAddrDetail = JSON.toJavaObject(addrDetailMap.get(address), NcovAddrDetail.class);
         }
-        log.info("[NcovAddrService] compareAndUpdate===》增加对象：{}", JSON.toJSONString(addAddrDetails));
+        //6302-6291=11条重复数据
+        log.info("==> 执行[NcovAddrService] compareAndUpdate===》增加对象：{}", JSON.toJSONString(addAddrDetails));
         redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
 
 
@@ -129,8 +133,8 @@ public class NcovAddrService extends AbstractService {
                 continue;
             }
         }
-        log.info("==>执行[readFileFromRemote] , 总条数【{}】，无效条数【{}】， 去除无效数据后条数【{}】, 总花费时间【{}】毫秒",
-                allCount,invalidCount,ncovAddrDetails.size(),(System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromRemote] , 总条数【{}】，无效条数【{}】， 去除无效数据后条数【{}】，重复数据11条，故实际为【{}】, 总花费时间【{}】毫秒",
+                allCount,invalidCount,ncovAddrDetails.size(),(ncovAddrDetails.size()-11), (System.currentTimeMillis() - start));
 
         return ncovAddrDetails;
     }
@@ -195,7 +199,7 @@ public class NcovAddrService extends AbstractService {
     @Override
     public void initTable() {
         if(truncate) {
-            DsUtil.execute(TRUNCATE_ADDR_TABLE, null);
+            jdbcTemplate.execute(TRUNCATE_ADDR_TABLE);
         }
     }
 
@@ -246,7 +250,7 @@ public class NcovAddrService extends AbstractService {
 
             if (insertCount == 99) {
                 valueSql.append(";");
-                DsUtil.execute(sql.append(valueSql).toString(),null);
+                jdbcTemplate.execute(sql.append(valueSql).toString());
 
                 insertCount = 0;
                 executeSqlNum++;
@@ -262,7 +266,7 @@ public class NcovAddrService extends AbstractService {
 
         if (valueSql.length() != 0) {
             String s = valueSql.substring(0, valueSql.length() - 1);
-            DsUtil.execute(sql.append(s).toString(),null);
+            jdbcTemplate.execute(sql.append(s).toString());
             executeSqlNum++;
 
         }

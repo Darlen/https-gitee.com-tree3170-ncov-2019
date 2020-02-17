@@ -35,14 +35,19 @@ class NcovAddrApplicationTests {
     }
     @Test
     public void localInitData() throws Exception{
-
+        //2020-02-17 10:12:15.178  INFO 95243 --- [           main] com.tree.ncov.service.NcovAddrService              :
+        // ==>执行[putDataInRedis], 总条数【6294】, 重复条数【3】，去除重复数据之后实际条数【6291】, 共花费【802】毫秒
         ncovService.initDataFromLocal();
     }
 
     @Test
     public void remoteInitData() throws Exception{
-
         ncovService.initDataFromRemote();
     }
 
+    @Test
+    public void compareAndUpdate() throws Exception{
+
+        ncovService.compareAndUpdate();
+    }
 }

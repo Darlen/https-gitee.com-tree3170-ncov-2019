@@ -2,6 +2,7 @@ package com.tree.ncov.github.entity;
 
 import lombok.Data;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -15,6 +16,7 @@ import java.util.List;
  * @Version 1.0
  */
 @Data
-public class NcovCountryResult {
+public class NcovCountry extends NcovBaseEntity{
     private List<NcovProvDetail> results;
+    private String country;
 }

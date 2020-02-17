@@ -9,10 +9,13 @@ spring:
     password: root
     url: jdbc:mysql://127.0.0.1:3306/user?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
     type: com.zaxxer.hikari.HikariDataSource
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
 
 #自定义配置
 ncov:
-  base: /Users/tree/Desktop/ncov #base目录
+  base: /Users/tree/IdeaProject_Local/ncov-demo/file #base目录
   ds:
     name: pg #使用数据库类型
   cbndata:
@@ -41,5 +44,6 @@ ncov:
       csv:
         filename: DXYArea.csv
         url: ${ncov.base}/${ncov.githubdata.local.csv.filename}
+
 
 

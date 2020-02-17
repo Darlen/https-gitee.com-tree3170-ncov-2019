@@ -17,16 +17,16 @@ import java.util.List;
  * @Version 1.0
  */
 @Data
-public class NcovProvDetail {
+public class NcovProvDetail extends NcovBaseEntity{
     private String country = "中国";
     private String provinceName;
     private String provinceShortName;
-    private Long curConfirmCount;
-    private Long confirmedCount;
-    private Long suspectedCount;
-    private Long curedCount;
-    private Long deadCount;
-    private Date updateTime;
+//    private Long curConfirmCount;
+//    private Long confirmedCount;
+//    private Long suspectedCount;
+//    private Long curedCount;
+//    private Long deadCount;
+//    private Date updateTime;
     List<NcovCityDetail>  cities;
 
     public static void main(String[] args) {

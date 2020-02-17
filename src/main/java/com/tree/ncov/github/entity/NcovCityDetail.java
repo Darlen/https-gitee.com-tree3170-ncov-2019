@@ -42,4 +42,23 @@ public class NcovCityDetail {
         this.cityName = cityName;
     }
 
+    public Long getCityCurConfirmCount() {
+        return cityCurConfirmCount == null ? 0L: cityCurConfirmCount;
+    }
+
+    public Long getCityConfirmedCount() {
+        return cityConfirmedCount == null ? 0L: cityConfirmedCount;
+    }
+
+    public Long getCitySuspectedCount() {
+        return citySuspectedCount == null ? 0L: citySuspectedCount;
+    }
+
+    public Long getCityCuredCount() {
+        return cityCuredCount == null ? 0L: cityCuredCount;
+    }
+
+    public Long getCityDeadCount() {
+        return cityDeadCount == null ? 0L: cityDeadCount;
+    }
 }

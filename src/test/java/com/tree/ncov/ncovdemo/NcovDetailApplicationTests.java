@@ -54,6 +54,8 @@ class NcovDetailApplicationTests {
      */
     @Test
     public void initData() throws Exception{
+        //2020-02-17 12:46:48.504  INFO 12158 --- [           main] com.tree.ncov.service.NcovDetailService
+        // : 执行sql【87】次，总共数量【8689】, 执行数据库总花费【2338】毫秒
         ncovService.initDataFromLocal();
     }
 
