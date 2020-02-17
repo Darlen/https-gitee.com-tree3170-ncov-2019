@@ -143,7 +143,7 @@ public class NcovAddrService extends AbstractService {
     @Override
     public List readFileFromLocal() throws IOException {
         long start = System.currentTimeMillis();
-        log.info("==>[readFileFromLocal], 读取本地文件:{}",localJsonUrl);
+        log.info("==>执行[readFileFromLocal], 读取本地文件:{}",localJsonUrl);
         FileReader fileReader = new FileReader(new File(localJsonUrl));
         BufferedReader br = new BufferedReader(fileReader);
 
@@ -186,7 +186,7 @@ public class NcovAddrService extends AbstractService {
 
             i++;
         }
-        log.info("==>执行[readFileFromLocal] 总花费时间：{}", (System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromLocal] 总花费时间【{}】毫秒", (System.currentTimeMillis() - start));
 
         return ncovAddrDetails;
     }

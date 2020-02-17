@@ -34,9 +34,14 @@ class NcovAddrApplicationTests {
 //                new TypeReference<T>(){});
     }
     @Test
-    public void initData() throws Exception{
+    public void localInitData() throws Exception{
 
-//        ncovService.initDataFromLocal();
+        ncovService.initDataFromLocal();
+    }
+
+    @Test
+    public void remoteInitData() throws Exception{
+
         ncovService.initDataFromRemote();
     }
 
