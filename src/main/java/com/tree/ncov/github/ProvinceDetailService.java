@@ -1,9 +1,12 @@
 package com.tree.ncov.github;
 
+import com.tree.ncov.github.dto.NcovOverallResult;
 import com.tree.ncov.github.entity.*;
 import com.tree.ncov.github.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
@@ -35,6 +38,12 @@ public class ProvinceDetailService {
     @Autowired
     private CountryLatestRepository countryLatestRepository;
 
+//    @Value("${ncov.githubdata.remote.overall.json.url}")
+//    private String remoteJsonUrl;
+
+//    @Autowired
+//    private RestTemplate restTemplate;
+
     /**
      * 更新所有相关的数据
      * 注意前提是城市已经被更新， 即ncov_detail， 否则都是以前数据
@@ -43,32 +52,36 @@ public class ProvinceDetailService {
         //TODO 必须要32个省的数据， 有时候更新没有
 
         NcovCountry country = getTodayCountryDetailFromDB();
+        if(country != null && country.getResults()!= null && country.getResults().size() > 0) {
         /*
         处理latest
         删除当天数据所有省数据, 再添加
         */
-        provDetailRepository.deleteToday();
-        provDetailRepository.saveAll(country.getResults());
+            provDetailRepository.deleteToday();
+            provDetailRepository.saveAll(country.getResults());
 
         /*
          处理latest
         */
-        provLatestDetailRepository.deleteToday();
-        provLatestDetailRepository.saveAll(NcovProvDetailLatest.convert(country.getResults()));
+            provLatestDetailRepository.deleteToday();
+            provLatestDetailRepository.saveAll(NcovProvDetailLatest.convert(country.getResults()));
 
-        /*
-        处理当天中国数据
-         */
-        countryRepository.deleteToday();
-        countryRepository.save(country);
-        /*
-            处理当天中国Latest数据
-        */
-        countryLatestRepository.deleteToday();
-        countryLatestRepository.save(new NcovCountryLatest(country));
+//        /*
+//        处理当天中国数据
+//         */
+//        countryRepository.deleteToday();
+//        countryRepository.save(country);
+//        /*
+//            处理当天中国Latest数据
+//        */
+//
+//        countryLatestRepository.deleteToday();
+//        countryLatestRepository.save(new NcovCountryLatest(country));
 
-        //处理当天没有的省份的数据， 即获取最新的省份数据即可
+            //处理当天没有的省份的数据， 即获取最新的省份数据即可
 //        NcovCountry country = getTodayCountryDetailFromDB();
+        }
+
 
     }
 
@@ -102,7 +115,7 @@ public class ProvinceDetailService {
                     provDetail.setCountryName(Optional.ofNullable(cityDetail.getCountryName()).orElse("中国"));
                     provDetail.setProvinceName(cityDetail.getProvinceName());
                     provDetail.setProvinceShortName(cityDetail.getProvinceShortName());
-                    provDetail.setCurConfirmCount(cityDetail.getProvCurConfirmCount());
+                    provDetail.setCurrentConfirmedCount(cityDetail.getProvCurConfirmCount());
                     provDetail.setConfirmedCount(cityDetail.getProvinceConfirmedCount());
                     provDetail.setSuspectedCount(cityDetail.getProvinceSuspectedCount());
                     provDetail.setCuredCount(cityDetail.getProvinceCuredCount());
@@ -132,7 +145,7 @@ public class ProvinceDetailService {
              */
             todayCountry.setCountryName("中国");
             todayCountry.setUpdateTime(date);
-            todayCountry.setCurConfirmCount(curConfirmCount);
+            todayCountry.setCurrentConfirmedCount(curConfirmCount);
             todayCountry.setConfirmedCount(confirmedCount);
             todayCountry.setSuspectedCount(suspectedCount);
             todayCountry.setCuredCount(curedCount);

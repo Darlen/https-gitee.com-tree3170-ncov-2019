@@ -37,30 +37,14 @@ public class NcovCityDetail extends NcovBaseEntity{
     private Long provinceConfirmedCount;
     @Column(name = "province_suspected_count")
     private Long provinceSuspectedCount;
-    @Column(name = "province_dead_count")
-    private Long provinceCuredCount;
     @Column(name = "province_cured_count")
+    private Long provinceCuredCount;
+    @Column(name = "province_dead_count")
     private Long provinceDeadCount;
-//    @Column(name = "city_cur_confirmed_count")
-//    private Long cityCurConfirmCount;
-//    @Column(name = "city_confirmed_count")
-//
-//    private Long cityConfirmedCount;
-//    @Column(name = "city_suspected_count")
-//
-//    private Long citySuspectedCount;
-//    @Column(name = "city_cured_count")
-//
-//    private Long cityCuredCount;
-//    @Column(name = "city_dead_count")
-//
-//    private Long cityDeadCount;
 
     @Column(name = "updateTime")
     private Date updateTime;
 
-//    @Column(name = "createTime")
-//    private Date createTime;
 
     public NcovCityDetail(){}
 
@@ -69,23 +53,4 @@ public class NcovCityDetail extends NcovBaseEntity{
         this.cityName = cityName;
     }
 
-//    public Long getCityCurConfirmCount() {
-//        return getCurConfirmCount() == null ? 0L: cityCurConfirmCount;
-//    }
-//
-//    public Long getCityConfirmedCount() {
-//        return cityConfirmedCount == null ? 0L: cityConfirmedCount;
-//    }
-//
-//    public Long getCitySuspectedCount() {
-//        return citySuspectedCount == null ? 0L: citySuspectedCount;
-//    }
-//
-//    public Long getCityCuredCount() {
-//        return cityCuredCount == null ? 0L: cityCuredCount;
-//    }
-//
-//    public Long getCityDeadCount() {
-//        return cityDeadCount == null ? 0L: cityDeadCount;
-//    }
 }

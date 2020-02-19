@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.StringUtils;
@@ -37,8 +38,11 @@ public class NcovDemoApplication {
 
     public static void main(String[] args) throws IOException {
         SpringApplication.run(NcovDemoApplication.class, args);
+    }
 
-
+    @Bean
+    RestTemplate restTemplate(){
+        return new RestTemplate();
     }
 
 

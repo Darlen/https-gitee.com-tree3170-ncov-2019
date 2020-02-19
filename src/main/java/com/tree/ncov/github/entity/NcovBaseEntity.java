@@ -23,7 +23,7 @@ public class NcovBaseEntity {
     @Column(name="country")
     private String countryName;
     @Column(name="current_confirm_count")
-    private Long curConfirmCount;
+    private Long currentConfirmedCount;
     @Column(name="confirmed_count")
     private Long confirmedCount;
     @Column(name="suspected_count")
@@ -37,8 +37,12 @@ public class NcovBaseEntity {
     @Column(name="createTime")
     private Date createTime;
 
+    public String getCountryName() {
+        return Optional.ofNullable(countryName).orElse("中国");
+    }
+
     public Long getCurConfirmCount() {
-        return Optional.ofNullable(curConfirmCount).orElse(0L);
+        return Optional.ofNullable(currentConfirmedCount).orElse(0L);
     }
 
     public Long getConfirmedCount() {

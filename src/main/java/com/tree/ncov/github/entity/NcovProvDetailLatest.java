@@ -37,13 +37,12 @@ public class NcovProvDetailLatest extends NcovBaseEntity{
         this.setCountryName(provDetail.getCountryName());
         this.provinceName = provDetail.getProvinceName();
         provinceShortName = provDetail.getProvinceShortName();
-        super.setCurConfirmCount(provDetail.getCurConfirmCount());
+        super.setCurrentConfirmedCount(provDetail.getCurConfirmCount());
         super.setConfirmedCount(provDetail.getConfirmedCount());
         super.setSuspectedCount(provDetail.getSuspectedCount());
         super.setCuredCount(provDetail.getCuredCount());
         super.setDeadCount(provDetail.getDeadCount());
         updateTime = provDetail.getUpdateTime();
-
     }
 
     public static List<NcovProvDetailLatest> convert(List<NcovProvDetail> ncovProvDetails){

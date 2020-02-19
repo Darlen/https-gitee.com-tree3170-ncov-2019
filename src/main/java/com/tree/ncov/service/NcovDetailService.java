@@ -8,9 +8,13 @@ import com.alibaba.fastjson.JSONObject;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.tree.ncov.github.ProvinceDetailService;
+import com.tree.ncov.github.dto.NcovOverallResult;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountry;
+import com.tree.ncov.github.entity.NcovCountryLatest;
 import com.tree.ncov.github.entity.NcovProvDetail;
+import com.tree.ncov.github.repository.CountryLatestRepository;
+import com.tree.ncov.github.repository.CountryRepository;
 import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.*;
 import java.sql.PreparedStatement;
@@ -94,16 +99,18 @@ public class NcovDetailService extends AbstractService {
     @Value("${ncov.githubdata.from}")
     private String from;
 
-    @Value("${ncov.githubdata.remote.json.url}")
+    @Value("${ncov.githubdata.remote.area.json.url}")
     private String remoteJsonUrl;
+    @Value("${ncov.githubdata.remote.overall.json.url}")
+    private String overallRemoteJsonUrl;
 
-    @Value("${ncov.githubdata.remote.json.filename}")
+    @Value("${ncov.githubdata.remote.area.json.filename}")
     private String remoteJsonFilename;
 
-    @Value("${ncov.githubdata.remote.zip.url}")
+    @Value("${ncov.githubdata.remote.area.zip.url}")
     private String remoteZipUrl;
 
-    @Value("${ncov.githubdata.remote.zip.filename}")
+    @Value("${ncov.githubdata.remote.area.zip.filename}")
     private String remoteZipFilename;
 
     /**
@@ -114,6 +121,8 @@ public class NcovDetailService extends AbstractService {
 
     @Value("${ncov.githubdata.local.json.filename}")
     private String localJsonFilename;
+    @Autowired
+    private RestTemplate restTemplate;
 
     /**
      * 本地CSV文件
@@ -130,6 +139,11 @@ public class NcovDetailService extends AbstractService {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private ProvinceDetailService provinceDetailService;
+    @Autowired
+    private CountryRepository countryRepository;
+
+    @Autowired
+    private CountryLatestRepository countryLatestRepository;
 
 
     /**
@@ -172,6 +186,24 @@ public class NcovDetailService extends AbstractService {
             //3. 处理
             handleCompareResult(executeNum, exeProvinceList, remoteProvDetail, dbChinaProvDetails);
         });
+
+        //远程获取over all 的各个指标
+        NcovOverallResult overall = restTemplate.getForObject(overallRemoteJsonUrl, NcovOverallResult.class);
+        if(overall != null && overall.isSuccess() && overall.getResults() != null) {
+            NcovCountry overallCountry = overall.getResults().get(0);
+            overallCountry.setCountryName("中国");
+            overallCountry.setCreateTime(new Date());
+            /*
+            处理当天中国数据
+             */
+            countryRepository.deleteToday();
+            countryRepository.save(overallCountry);
+            /*
+                处理当天中国Latest数据
+            */
+            countryLatestRepository.deleteToday();
+            countryLatestRepository.save(new NcovCountryLatest(overallCountry));
+        }
         log.info("==>总处理条数【{}】, 处理的省份为:{}", executeNum, JSON.toJSONString(exeProvinceList));
 
     }
@@ -606,7 +638,7 @@ public class NcovDetailService extends AbstractService {
             date = provDetail.getUpdateTime();
         }
         NcovCountry country = new NcovCountry();
-        country.setCurConfirmCount(curConfirmCount);
+        country.setCurrentConfirmedCount(curConfirmCount);
         country.setConfirmedCount(confirmedCount);
         country.setSuspectedCount(suspectedCount);
         country.setCuredCount(curedCount);
@@ -630,7 +662,7 @@ public class NcovDetailService extends AbstractService {
         for(Map.Entry<String, NcovProvDetail> entry : provDetailMap.entrySet()){
             NcovProvDetail provDetail = entry.getValue();
             NcovProvDetail provDetailNew = new NcovProvDetail();
-            provDetailNew.setCurConfirmCount(provDetail.getCurConfirmCount());
+            provDetailNew.setCurrentConfirmedCount(provDetail.getCurConfirmCount());
             provDetailNew.setConfirmedCount(provDetail.getConfirmedCount());
             provDetailNew.setSuspectedCount(provDetail.getSuspectedCount());
             provDetailNew.setCuredCount(provDetail.getCuredCount());
@@ -671,7 +703,7 @@ public class NcovDetailService extends AbstractService {
             if (tmpYearMonthDay.equals(yearMonthDay)
                     && tmpProvince.equals(provDetail.getProvinceName())
                     && !cities.contains(cityDetail)) {
-                provDetail.setCurConfirmCount(cityDetail.getProvCurConfirmCount());
+                provDetail.setCurrentConfirmedCount(cityDetail.getProvCurConfirmCount());
                 provDetail.setConfirmedCount(cityDetail.getProvinceConfirmedCount());
                 provDetail.setSuspectedCount(cityDetail.getProvinceSuspectedCount());
                 provDetail.setCuredCount(cityDetail.getProvinceCuredCount());

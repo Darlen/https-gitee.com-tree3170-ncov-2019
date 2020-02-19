@@ -48,12 +48,16 @@ ncov:
     from: local
     truncate: true #是否自动清除
     remote:
-      json:
-        url: https://raw.githubusercontent.com/BlankerL/DXY-COVID-19-Data/master/json/DXYArea.json
-        filename: DXYArea.json
-      zip:
-        url: https://github.com/BlankerL/DXY-COVID-19-Data/archive/master.zip
-        filename: master.zip
+      overall:
+        json:
+          url: https://lab.isaaclin.cn/nCoV/api/overall
+      area:
+        json:
+          url: https://lab.isaaclin.cn//nCoV/api/area?latest=1
+          filename: DXYArea.json
+        zip:
+          url: https://github.com/BlankerL/DXY-COVID-19-Data/archive/master.zip
+          filename: master.zip
     local:
       json:
         filename: DXYArea.json

@@ -1,7 +1,9 @@
 package com.tree.ncov.ncovdemo;
 
 import com.alibaba.fastjson.JSON;
+import com.tree.ncov.cbndata.entity.NcovResult;
 import com.tree.ncov.github.ProvinceDetailService;
+import com.tree.ncov.github.dto.NcovOverallResult;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountry;
 import com.tree.ncov.github.entity.NcovProvDetail;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
@@ -31,16 +34,16 @@ class NcovDetailApplicationTests {
     @Value("${ncov.githubdata.from}")
     private String from;
 
-    @Value("${ncov.githubdata.remote.json.url}")
+    @Value("${ncov.githubdata.remote.area.json.url}")
     private String remoteJsonUrl;
 
-    @Value("${ncov.githubdata.remote.json.filename}")
+    @Value("${ncov.githubdata.remote.area.json.filename}")
     private String remoteJsonFilename;
 
-    @Value("${ncov.githubdata.remote.zip.url}")
+    @Value("${ncov.githubdata.remote.area.zip.url}")
     private String remoteZipUrl;
 
-    @Value("${ncov.githubdata.remote.zip.filename}")
+    @Value("${ncov.githubdata.remote.area.zip.filename}")
     private String remoteZipFilename;
 
     @Value("${ncov.githubdata.local.json.url}")
@@ -69,6 +72,8 @@ class NcovDetailApplicationTests {
     private CityDetailRepository cityDetailRepository;
     @Autowired
     private NcovDetailService ncovDetailService;
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Test
     void contextLoads() {
@@ -128,6 +133,13 @@ class NcovDetailApplicationTests {
     public void findLatestByProvince(){
         NcovCityDetail cityDetail =  cityDetailRepository.findLatestByProvince("广东省");
         System.out.println(JSON.toJSONString(cityDetail));
+
+    }
+
+    @Test
+    public void getOverAll(){
+        NcovOverallResult o = restTemplate.getForObject("https://lab.isaaclin.cn/nCoV/api/overall", NcovOverallResult.class);
+        System.out.println(JSON.toJSONString(o,true));
 
     }
 
