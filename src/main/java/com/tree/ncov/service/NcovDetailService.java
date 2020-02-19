@@ -1,11 +1,13 @@
 package com.tree.ncov.service;
 
+import cn.hutool.core.date.DateUnit;
+import cn.hutool.core.date.DateUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
-import com.tree.ncov.Util.DsUtil;
+import com.tree.ncov.github.ProvinceDetailService;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountry;
 import com.tree.ncov.github.entity.NcovProvDetail;
@@ -14,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 //import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.jdbc.core.PreparedStatementSetter;
@@ -26,6 +27,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tree.ncov.constant.Constants.*;
 import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
@@ -43,6 +45,45 @@ import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_PREFIX;
 @Slf4j
 @Service
 public class NcovDetailService extends AbstractService {
+    private static Map<String/*完整名*/, String/*short name*/> provinceMap = new HashMap<>();
+    static {
+
+        provinceMap.put("上海市","上海市");
+        provinceMap.put("云南省","云南");
+        provinceMap.put("内蒙古自治区","内蒙古");
+        provinceMap.put("北京市","北京市");
+        provinceMap.put("吉林省","吉林");
+        provinceMap.put("四川省","四川");
+        provinceMap.put("天津市","天津市");
+        provinceMap.put("宁夏回族自治区","宁夏");
+        provinceMap.put("安徽省","安徽");
+        provinceMap.put("山东省","山东");
+        provinceMap.put("山西省","山西");
+        provinceMap.put("广东省","广东");
+        provinceMap.put("广西壮族自治区","广西");
+        provinceMap.put("新疆维吾尔自治区","新疆");
+        provinceMap.put("江苏省","江苏");
+        provinceMap.put("江西省","江西");
+        provinceMap.put("河北省","河北");
+        provinceMap.put("河南省","河南");
+        provinceMap.put("浙江省","浙江");
+        provinceMap.put("海南省","海南");
+        provinceMap.put("湖北省","湖北");
+        provinceMap.put("湖南省","湖南");
+        provinceMap.put("甘肃省","甘肃");
+        provinceMap.put("福建省","福建");
+        provinceMap.put("贵州省","贵州");
+        provinceMap.put("辽宁省","辽宁");
+        provinceMap.put("重庆市","重庆市");
+        provinceMap.put("陕西省","陕西");
+        provinceMap.put("西藏自治区","西藏");
+        provinceMap.put("甘肃省","甘肃");
+        provinceMap.put("青海省","青海");
+        provinceMap.put("黑龙江省","黑龙江");
+        provinceMap.put("澳门","澳门");
+        provinceMap.put("香港","香港");
+        provinceMap.put("台湾","台湾");
+    }
 
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
@@ -87,6 +128,8 @@ public class NcovDetailService extends AbstractService {
     private RedisService redisService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private ProvinceDetailService provinceDetailService;
 
 
     /**
@@ -96,6 +139,7 @@ public class NcovDetailService extends AbstractService {
     static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
+    static SimpleDateFormat sdf4 = new SimpleDateFormat("yyyyMMdd");
 
 
     @Override
@@ -118,62 +162,96 @@ public class NcovDetailService extends AbstractService {
 
         handleRemoteData(remoteChinaProvDetails);
 
-        //2. 从redis获取当天对象
-        Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap =
-                (Map<String, JSONObject>) redisService.get(GITHUBU_DATA_PROV_CITY_BY_DAY_REDIS_KEY
-                        + sdf3.format(remoteChinaProvDetails.get(0).getUpdateTime()));
-        /*
-         * 按年月日存储所有省集合对象， 取每天省的最新数据
-         *
-         * 算法：
-         *     如果redis中没有包含年月日，则增加省，增加城市， 并更新redis
-         *     否则远程的 省份更新时间 > redis中省份的更新时间， 则更新
-         */
+        // 2. 获取city的当天的数据
+        NcovCountry dbCountry =  provinceDetailService.getTodayCountryDetailFromDB();
+        List<NcovProvDetail> dbChinaProvDetails = dbCountry.getResults();
+        AtomicInteger executeNum = new AtomicInteger();
+        List<String> exeProvinceList = new ArrayList<>();
+        List<String> notTodayProvinceList = new ArrayList<>();
         remoteChinaProvDetails.forEach(remoteProvDetail -> {
             //3. 处理
-            handleCompareResult(remoteProvDetail, curDayProvDetailMap);
-
+            handleCompareResult(executeNum, exeProvinceList, remoteProvDetail, dbChinaProvDetails);
         });
+        log.info("==>总处理条数【{}】, 处理的省份为:{}", executeNum, JSON.toJSONString(exeProvinceList));
 
     }
 
-    /**
-     * 处理比较后的结果
-     * 算法：按年月日存储所有省集合对象， 取每天省的最新数据
-     * 如果redis中没有包含年月日，则增加省，增加城市， 并更新redis
-     * 否则远程的 省份更新时间 > redis中省份的更新时间， 则更新
-     *
-     * @param remoteProvDetail
-     * @param curDayProvDetailMap
-     */
-    private void handleCompareResult(NcovProvDetail remoteProvDetail,
-                                     Map<String/*省*/, JSONObject/*NcovProvDetail*/> curDayProvDetailMap) {
-        Date updateTime = remoteProvDetail.getUpdateTime();
-        String yearMonthDay = sdf3.format(updateTime);
+    private void handleCompareResult(AtomicInteger executeNum, List<String> exeProvinceList,
+                                     NcovProvDetail remoteProvDetail,List<NcovProvDetail> dbChinaProvDetails){
+        long start = System.currentTimeMillis();
+
         String province = remoteProvDetail.getProvinceName();
-        //如果当天数据为空，则新增
-        if (curDayProvDetailMap == null || curDayProvDetailMap.size() == 0) {
-            //新增
-            batchUpdate(remoteProvDetail.getCities());
-            //TODO 增加省
-            curDayProvDetailMap.put(province, JSON.parseObject(JSON.toJSONString(remoteProvDetail)));
-            redisService.put(GITHUBU_DATA_PROV_CITY_BY_DAY_REDIS_KEY + yearMonthDay, curDayProvDetailMap);
-        }
+        if(dbChinaProvDetails == null || dbChinaProvDetails.size() == 0){
+            log.info("========【handleCompareResult】， 当天db不存在该省份【{}】数据， 全部更新远程数据===========",remoteProvDetail.getProvinceName());
+            log.info(JSON.toJSONString(remoteProvDetail));
 
-        //如果当前数据不为空， 且update时间 > redis中时间，则更新
-        JSONObject jsonObject = curDayProvDetailMap.get(province);
-        NcovProvDetail redisProvDetail = JSON.toJavaObject(jsonObject, NcovProvDetail.class);
-        if (updateTime.getTime() > redisProvDetail.getUpdateTime().getTime()) {
-            //更新
-            List<NcovCityDetail> remoteCities = remoteProvDetail.getCities();
-            //TODO 更新省
+            //插入城市数据
+            batchInsertDetail(remoteProvDetail.getCities());
 
-            //删除当天的这个省份的所有数据，
-            String mysqlDeleteSql = "DELETE FROM NCOV_DETAIL WHERE provinceName='" + province + "', TO_DAYS(updateTime) = TO_DAYS('" + sdf2.format(updateTime) + "')";
-            String pgDeleteSql = "DELETE FROM NCOV_DETAIL WHERE finish_time BETWEEN TIMESTAMP'" + yearMonthDay + "' AND TIMESTAMP'" + yearMonthDay + " 23:59:59'";
-            jdbcTemplate.execute("mysql".equals(dsName) ? mysqlDeleteSql : pgDeleteSql);
-            //插入当前的这个省份的所有数据
-            batchUpdate(remoteCities);
+            //更新所有远程数据
+            provinceDetailService.updateProvinceTodayData();
+
+            executeNum.getAndIncrement();
+            exeProvinceList.add(province);
+            log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis()-start));
+        }else {
+            Date remoteUpdateTime = remoteProvDetail.getUpdateTime();
+            if (!dbChinaProvDetails.contains(remoteProvDetail)) {
+                //如果远程数据不是当天数据， 修改为今天日期， 并插入到今天的数据中
+
+                Date day = new Date();
+                long today = Long.valueOf(sdf4.format(day));
+                long remote = Long.valueOf(sdf4.format(remoteUpdateTime));
+                if(remote < today ){
+                    log.info("========【handleCompareResult】， 今天的DB不存在该省份【{}】, 但该省份的时间是【{}】, 小于当天时间， " +
+                            "修改为今天的日期：{}",province, remote,today);
+                    remoteProvDetail.setUpdateTime(day);
+                    for(NcovCityDetail cityDetail:remoteProvDetail.getCities()){
+                        cityDetail.setUpdateTime(day);
+                    }
+                }
+                log.info("========【handleCompareResult】， 今天的DB不存在该省份【{}】直接更新该省的数据===========", province);
+                log.info(JSON.toJSONString(remoteProvDetail));
+                //插入城市数据
+                batchInsertDetail(remoteProvDetail.getCities());
+                //更新所有远程数据
+                provinceDetailService.updateProvinceTodayData();
+
+                executeNum.getAndIncrement();
+                exeProvinceList.add(province);
+                log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis() - start));
+
+            } else {
+
+                dbChinaProvDetails.forEach(dbProvDetail -> {
+                    Date updateTime = remoteProvDetail.getUpdateTime();
+                    //比较同一省份， 时间大小， 如果远程 > DB, 则执行删除当天再更新所有数据
+                    if (province.equals(dbProvDetail.getProvinceName())
+                            //如果是当天的数据（因为远程的省可能不是当天的数据）
+                            && true
+                            && remoteUpdateTime.getTime() > dbProvDetail.getUpdateTime().getTime()) {
+                        log.info("========【handleCompareResult】， 该省份【{}】在DB中的数据时间为【{}】, " +
+                                "远程时间数据为【{}】, DB < Remote， 更新该省份所有数据===========",
+                                province,sdf2.format(dbProvDetail.getUpdateTime()),sdf2.format(updateTime));
+                        String yearMonthDay = sdf3.format(updateTime);
+
+                        //删除当天的这个省份下面的所有城市的数据，
+                        String mysqlDeleteSql = "DELETE FROM NCOV_DETAIL WHERE provinceName='" + province + "', TO_DAYS(updateTime) = TO_DAYS('" + sdf2.format(updateTime) + "')";
+                        String pgDeleteSql = "DELETE FROM NCOV_DETAIL WHERE updateTime BETWEEN TIMESTAMP'" + yearMonthDay + "' AND TIMESTAMP'" + yearMonthDay + " 23:59:59'";
+                        jdbcTemplate.execute("mysql".equals(dsName) ? mysqlDeleteSql : pgDeleteSql);
+                        batchInsertDetail(remoteProvDetail.getCities());
+
+                        //更新所有远程数据
+                        provinceDetailService.updateProvinceTodayData();
+                        log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis()-start));
+
+                        executeNum.getAndIncrement();
+                        exeProvinceList.add(province);
+                    } else {
+                        //忽略
+                    }
+                });
+            }
         }
     }
 
@@ -186,17 +264,36 @@ public class NcovDetailService extends AbstractService {
     private void handleRemoteData(List<NcovProvDetail> remoteChinaProvDetails) {
         remoteChinaProvDetails.forEach(provDetail -> {
             Date updateTime = provDetail.getUpdateTime();
+            String province = provDetail.getProvinceName();
+            //如果没有城市， 且城市为香港、澳门、台湾， 则添加
+            if((provDetail.getCities() == null || provDetail.getCities().size() == 0)
+                   && (province.indexOf("香港") != -1 || province.indexOf("澳门") != -1 || province.indexOf("台湾")!=-1)){
+                List<NcovCityDetail> cityDetails = new ArrayList<>();
+                cityDetails.add(cityObjBuilder(new NcovCityDetail(),provDetail));;
+                provDetail.setCities(cityDetails);
+            }
+
             List<NcovCityDetail> cityDetails = provDetail.getCities();
-            cityDetails.forEach(cityDetail -> {
-                cityDetail.setProvCurConfirmCount(provDetail.getCurConfirmCount());
-                cityDetail.setProvinceConfirmedCount(provDetail.getConfirmedCount());
-                cityDetail.setProvinceSuspectedCount(provDetail.getSuspectedCount());
-                cityDetail.setProvinceDeadCount(provDetail.getDeadCount());
-                cityDetail.setProvinceCuredCount(provDetail.getCuredCount());
-                cityDetail.setUpdateTime(updateTime);
-                cityDetail.setProvinceName(provDetail.getProvinceName());
-            });
+            if(cityDetails != null) {
+                cityDetails.forEach(cityDetail -> {
+                    cityObjBuilder(cityDetail,provDetail);
+                });
+            }
         });
+    }
+    private NcovCityDetail cityObjBuilder(NcovCityDetail cityDetail , NcovProvDetail provDetail){
+        cityDetail.setProvCurConfirmCount(provDetail.getCurConfirmCount());
+        cityDetail.setProvinceConfirmedCount(provDetail.getConfirmedCount());
+        cityDetail.setProvinceSuspectedCount(provDetail.getSuspectedCount());
+        cityDetail.setProvinceDeadCount(provDetail.getDeadCount());
+        cityDetail.setProvinceCuredCount(provDetail.getCuredCount());
+        cityDetail.setUpdateTime(provDetail.getUpdateTime());
+        cityDetail.setProvinceName(provDetail.getProvinceName());
+        cityDetail.setProvinceShortName(provDetail.getProvinceShortName());
+        cityDetail.setCountryName(provDetail.getCountryName());
+        cityDetail.setCreateTime(new Date());
+
+        return cityDetail;
     }
 
     @Override
@@ -231,9 +328,13 @@ public class NcovDetailService extends AbstractService {
                     continue;
                 }
                 detail = new NcovCityDetail();
+                detail.setCountryName("中国");
                 province = data[0];
                 city = data[3];
+                //单独处理province字段， 由于星空画板不支持省份后面带有"省"， 比如广东省-->广东
                 detail.setProvinceName(province);
+                String provinceShortName = handleProviceShortNameSpecial(province);
+                detail.setProvinceShortName(provinceShortName);
                 detail.setCityName(city);
                 try {
                     detail.setProvinceConfirmedCount(Long.valueOf(data[6]));
@@ -241,10 +342,10 @@ public class NcovDetailService extends AbstractService {
                     detail.setProvinceCuredCount(Long.valueOf(data[8]));
                     detail.setProvinceDeadCount(Long.valueOf(data[9]));
 
-                    detail.setCityConfirmedCount(Long.valueOf(data[10]));
-                    detail.setCitySuspectedCount(Long.valueOf(data[11]));
-                    detail.setCityCuredCount(Long.valueOf(data[12]));
-                    detail.setCityDeadCount(Long.valueOf(data[13]));
+                    detail.setConfirmedCount(Long.valueOf(data[10]));
+                    detail.setSuspectedCount(Long.valueOf(data[11]));
+                    detail.setCuredCount(Long.valueOf(data[12]));
+                    detail.setDeadCount(Long.valueOf(data[13]));
                 } catch (NumberFormatException e) {
                     System.err.println("===line" + line);
                     throw e;
@@ -269,10 +370,19 @@ public class NcovDetailService extends AbstractService {
                 i++;
             }
         }
-//        putDataInRedis(ncovCityDetails);
         log.info("==>执行[readFileFromLocal] 总花费时间【{}】毫秒", (System.currentTimeMillis() - start));
 
         return ncovCityDetails;
+    }
+
+    /**
+     * 单独处理province字段， 由于星空画板不支持省份后面带有"省"， 比如广东省-->广东
+     * @param province
+     * @return
+     */
+    private String handleProviceShortNameSpecial(String province){
+        return Optional.ofNullable(provinceMap.get(province)).orElse(province);
+
     }
 
     /**
@@ -301,12 +411,12 @@ public class NcovDetailService extends AbstractService {
 
         provDetails.forEach(ncovProvDetail -> {
             //只获取国家为中国的数据
-            if (ncovProvDetail.getCountry().indexOf("中国") != -1) {
+            if (ncovProvDetail.getCountryName().indexOf("中国") != -1) {
                 chinaProvDetails.add(ncovProvDetail);
                 chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
             }
         });
-        log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费时间：{}", (System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费时间：{}",provDetails.size(), (System.currentTimeMillis() - start));
         return chinaProvDetails;
     }
 
@@ -433,7 +543,6 @@ public class NcovDetailService extends AbstractService {
      * 先统计省份数据
      * 再统计国家数据
      *
-     * @param provCityMap
      * @param yearMonthDayProvDetailMap
      */
     private void handleStatData(List<NcovCityDetail> allCityDetails,
@@ -493,7 +602,7 @@ public class NcovDetailService extends AbstractService {
             suspectedCount += provDetail.getSuspectedCount();
             curedCount += provDetail.getCuredCount();
             deadCount += provDetail.getDeadCount();
-            countryName = provDetail.getCountry();
+            countryName = provDetail.getCountryName();
             date = provDetail.getUpdateTime();
         }
         NcovCountry country = new NcovCountry();
@@ -502,7 +611,7 @@ public class NcovDetailService extends AbstractService {
         country.setSuspectedCount(suspectedCount);
         country.setCuredCount(curedCount);
         country.setDeadCount(deadCount);
-        country.setCountry(countryName);
+        country.setCountryName(countryName);
         country.setUpdateTime(date);
         redisService.put(GITHUBU_DATA_COUNTRY_BY_DAY_REDIS_KEY+yearMonthDay, country);
         log.info("==>按每天国家统计集合，country={}",JSON.toJSONString(country));
@@ -528,7 +637,8 @@ public class NcovDetailService extends AbstractService {
             provDetailNew.setDeadCount(provDetail.getDeadCount());
             provDetailNew.setUpdateTime(provDetail.getUpdateTime());
             provDetailNew.setProvinceName(provDetail.getProvinceName());
-            provDetailNew.setCountry(provDetail.getCountry());
+            provDetailNew.setProvinceShortName(provDetail.getProvinceShortName());
+            provDetailNew.setCountryName(provDetail.getCountryName());
             provDetail.setDeadCount(provDetail.getDeadCount());
 
             list.add(provDetailNew);
@@ -598,13 +708,14 @@ public class NcovDetailService extends AbstractService {
     private NcovProvDetail simpleProvDetailBuilder(NcovCityDetail ncovCityDetail) {
         NcovProvDetail provDetail = new NcovProvDetail();
         provDetail.setProvinceName(ncovCityDetail.getProvinceName());
+        provDetail.setProvinceShortName(ncovCityDetail.getProvinceShortName());
         provDetail.setUpdateTime(ncovCityDetail.getUpdateTime());
         return provDetail;
     }
 
 
     @Override
-    public void batchUpdate(List ncovCityDetails) {
+    public void initBatchUpdate(List ncovCityDetails) {
         Long start = System.currentTimeMillis();
         //插入detail表
         batchInsertDetail(ncovCityDetails);
@@ -649,20 +760,16 @@ public class NcovDetailService extends AbstractService {
                         "\tcured_count,\n" +
                         "\tdead_count,\n" +
                         "\tupdate_date\n" +
-                        ")VALUES(?,?,?,?,?,?,'"+sdf3.format(country.getUpdateTime())+"')";//?)";//"
+                        ")VALUES(?,?,?,?,?,?,'"+sdf3.format(country.getUpdateTime())+"')";
         jdbcTemplate.update(sql, new PreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps) throws SQLException {
-                ps.setString(1,country.getCountry());
+                ps.setString(1,Optional.ofNullable(country.getCountryName()).orElse("中国"));
                 ps.setLong(2,country.getCurConfirmCount());
                 ps.setLong(3,country.getConfirmedCount());
                 ps.setLong(4,country.getSuspectedCount());
                 ps.setLong(5,country.getCuredCount());
                 ps.setLong(6,country.getDeadCount());
-//                System.out.println("==========="+JSON.toJSONString(sdf2.format(country.getUpdateTime())));
-//                ps.setDate(7,new java.sql.Date(country.getUpdateTime().getTime()));
-//                ps.setDate(7, java.sql.Date.valueOf(sdf2.format(country.getUpdateTime())));
-//                new java.sql.Date()sdf2.format(country.getUpdateTime()));
             }
         });
     }
@@ -670,11 +777,15 @@ public class NcovDetailService extends AbstractService {
     private void batchInsertProvince() {
         List<String> days = (List<String>)redisService.get(GITHUBU_DATA_DAYS);
         for(String day: days){
-            JSONArray array = (JSONArray) redisService.get(GITHUBU_DATA_PPROVINCE_BY_DAY_REDIS_KEY+day);
-            List<NcovProvDetail> list = (List<NcovProvDetail>) array.toJavaList(NcovProvDetail.class);
-            executeInsertProvice(list,"ncov_province_stat");
+            insertProvince(day);
         }
-        System.out.println(1);
+    }
+
+    private void insertProvince(String day){
+        JSONArray array = (JSONArray) redisService.get(GITHUBU_DATA_PPROVINCE_BY_DAY_REDIS_KEY+day);
+        List<NcovProvDetail> list = (List<NcovProvDetail>) array.toJavaList(NcovProvDetail.class);
+        executeInsertProvice(list,"ncov_province_stat");
+
     }
 
     private void executeInsertProvice(List<NcovProvDetail> list,String table) {
@@ -697,7 +808,7 @@ public class NcovDetailService extends AbstractService {
         for(int i = 0; i< list.size(); i++ ) {
             NcovProvDetail provDetail = list.get(i);
             valueSql.append("(")
-                    .append(" '" ).append(provDetail.getCountry()).append("' " )
+                    .append(" '" ).append(Optional.ofNullable(provDetail.getCountryName()).orElse("中国")).append("' " )
                     .append(", '" ).append(provDetail.getProvinceName()).append("' " )
                     .append("," + provDetail.getCurConfirmCount())
                     .append("," + provDetail.getConfirmedCount())
@@ -745,18 +856,20 @@ public class NcovDetailService extends AbstractService {
         List<NcovCityDetail> addrDetails = (List<NcovCityDetail>) ncovCityDetails;
         for (NcovCityDetail detail : addrDetails) {
             valueSql.append("(")
+                    .append("'").append(detail.getCountryName()).append("'").append(",")
                     .append("'").append(detail.getProvinceName()).append("'").append(",")
+                    .append("'").append(detail.getProvinceShortName()).append("'").append(",")
                     .append("'").append(detail.getCityName()).append("'").append(",")
                     .append(detail.getProvCurConfirmCount() == null ? 0 : detail.getProvCurConfirmCount()).append(",")
                     .append(detail.getProvinceConfirmedCount()).append(",")
                     .append(detail.getProvinceSuspectedCount()).append(",")
                     .append(detail.getProvinceCuredCount()).append(",")
                     .append(detail.getProvinceDeadCount()).append(",")
-                    .append(detail.getCityCurConfirmCount() == null ? 0 : detail.getCityCurConfirmCount()).append(",")
-                    .append(detail.getCityConfirmedCount()).append(",")
-                    .append(detail.getCitySuspectedCount()).append(",")
-                    .append(detail.getCityCuredCount()).append(",")
-                    .append(detail.getCityDeadCount()).append(",")
+                    .append(detail.getCurConfirmCount() == null ? 0 : detail.getCurConfirmCount()).append(",")
+                    .append(detail.getConfirmedCount()).append(",")
+                    .append(detail.getSuspectedCount()).append(",")
+                    .append(detail.getCuredCount()).append(",")
+                    .append(detail.getDeadCount()).append(",")
                     .append("'").append(sdf2.format(detail.getUpdateTime())).append("'")
                     .append(")");
 
@@ -765,7 +878,7 @@ public class NcovDetailService extends AbstractService {
                 try {
                     jdbcTemplate.execute(sql.append(valueSql).toString());
                 } catch (DataAccessException e) {
-                    log.error("==>[batchUpdate] occurs error. sql = {}", sql, e);
+                    log.error("==>[initBatchUpdate] occurs error. sql = {}", sql, e);
                     throw new RuntimeException(e);
                 }
                 insertcount = 0;
@@ -783,7 +896,6 @@ public class NcovDetailService extends AbstractService {
 
             if (travelCount == addrDetails.size() && valueSql.length() != 0) {
                 String s = valueSql.substring(0, valueSql.length() - 1);
-//                DsUtil.execute(sql.append(s).toString(),null);
                 jdbcTemplate.execute(sql.append(s).toString());
                 executeSqlNum++;
             }

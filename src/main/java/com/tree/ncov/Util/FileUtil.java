@@ -1,9 +1,13 @@
 package com.tree.ncov.Util;
 
+import cn.hutool.core.date.DateUnit;
+import cn.hutool.core.date.DateUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -55,6 +59,16 @@ public class FileUtil {
                 if (out != null) {out.close();}
             } catch (Exception e) {}
         }
+    }
+
+    public static void main(String[] args) {
+        Date date = new Date(1581854491463L);
+//        Date date = new Date(1582067525854L);
+        SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        System.out.println(sdf2.format(date));
+
+        System.out.println(DateUtil.between(date, new Date(), DateUnit.DAY));
+
     }
 
 }

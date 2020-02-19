@@ -2,7 +2,10 @@ package com.tree.ncov.github.entity;
 
 import lombok.Data;
 
+import javax.persistence.Column;
+import javax.persistence.MappedSuperclass;
 import java.util.Date;
+import java.util.Optional;
 
 /**
  * @ClassName com.tree.ncov.github.entity
@@ -14,32 +17,48 @@ import java.util.Date;
  * @Date 2020-02-17 15:52
  * @Version 1.0
  */
+@MappedSuperclass
 @Data
 public class NcovBaseEntity {
+    @Column(name="country")
+    private String countryName;
+    @Column(name="current_confirm_count")
     private Long curConfirmCount;
+    @Column(name="confirmed_count")
     private Long confirmedCount;
+    @Column(name="suspected_count")
     private Long suspectedCount;
+    @Column(name="cured_count")
     private Long curedCount;
+    @Column(name="dead_count")
     private Long deadCount;
-    private Date updateTime;
+//    @Column(name="update_date")
+//    private Date updateTime;
+    @Column(name="createTime")
+    private Date createTime;
 
     public Long getCurConfirmCount() {
-        return curConfirmCount==null?0L:curConfirmCount;
+        return Optional.ofNullable(curConfirmCount).orElse(0L);
     }
 
     public Long getConfirmedCount() {
-        return confirmedCount==null?0L:confirmedCount;
+        return Optional.ofNullable(confirmedCount).orElse(0L);
     }
 
     public Long getSuspectedCount() {
-        return suspectedCount==null?0L:suspectedCount;
+        return Optional.ofNullable(suspectedCount).orElse(0L);
     }
 
     public Long getCuredCount() {
-        return curedCount==null?0L:curedCount;
+        return Optional.ofNullable(curedCount).orElse(0L);
     }
 
     public Long getDeadCount() {
-        return deadCount==null?0L:deadCount;
+        return Optional.ofNullable(deadCount).orElse(0L);
     }
+
+    public Date getCreateTime() {
+        return Optional.ofNullable(createTime).orElse(new Date());
+    }
+
 }

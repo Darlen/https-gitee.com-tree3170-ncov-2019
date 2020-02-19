@@ -1,7 +1,6 @@
 package com.tree.ncov.service;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -28,7 +27,7 @@ public abstract class AbstractService {
         //继续处理该集合对象， 并放入redis
         putDataInRedis(list);
         //放入数据库
-        batchUpdate(list);
+        initBatchUpdate(list);
     }
 
     /**
@@ -43,7 +42,7 @@ public abstract class AbstractService {
         //继续处理该集合对象， 并放入redis
         putDataInRedis(list);
         //放入数据库
-        batchUpdate(list);
+        initBatchUpdate(list);
     }
 
     public void compareAndUpdate() throws Exception {
@@ -86,7 +85,7 @@ public abstract class AbstractService {
     /**
      * 批量插入数据到数据库
      */
-    public abstract void batchUpdate(List ncovList);
+    public abstract void initBatchUpdate(List ncovList);
 
 
 

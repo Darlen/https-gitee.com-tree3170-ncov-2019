@@ -38,6 +38,8 @@ public class NcovAddrDetail {
      *
      */
     private String latitude;
+
+    private String longitudeLatitude;
     /**
      *
      */

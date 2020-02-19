@@ -43,7 +43,7 @@ public class CnbDataTest {
 //        readLocalCsv();
 ////        readFileFromRemote();
 //        truncateTable();
-//        batchUpdate(addrDetailMap);
+//        initBatchUpdate(addrDetailMap);
 //    }
 
 //    private static void truncateTable() {
@@ -97,7 +97,7 @@ public class CnbDataTest {
 //        }
 //    }
 //
-//    private static void batchUpdate(Map<String, NcovAddrDetail> addrDetailMap) {
+//    private static void initBatchUpdate(Map<String, NcovAddrDetail> addrDetailMap) {
 //        int insertCount = 0;
 //        int executeSqlNum = 0;
 //        StringBuilder sql = new StringBuilder(1024*50);

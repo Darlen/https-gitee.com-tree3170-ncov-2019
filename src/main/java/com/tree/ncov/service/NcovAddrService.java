@@ -15,7 +15,6 @@ import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -27,7 +26,6 @@ import java.io.IOException;
 import java.util.*;
 
 import static com.tree.ncov.constant.Constants.*;
-import static com.tree.ncov.constant.Constants.CBN_DATA_CSV_FILE_PATH;
 
 /**
  * @ClassName com.tree.ncov
@@ -97,7 +95,7 @@ public class NcovAddrService extends AbstractService {
         redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
 
 
-        batchUpdate(addAddrDetails);
+        initBatchUpdate(addAddrDetails);
 
     }
 
@@ -179,6 +177,7 @@ public class NcovAddrService extends AbstractService {
             int count = StringUtils.isEmpty(data[5]) ? 0 : Integer.valueOf(data[5]);
             addrDetail.setCount(count);
             addrDetail.setLongitude(longtitude);
+            addrDetail.setLongitudeLatitude(longtitude+","+latitude);
 
             if (StringUtils.isEmpty(addrDetail.getAddress())
                     || StringUtils.isEmpty(addrDetail.getLongitude())
@@ -230,7 +229,7 @@ public class NcovAddrService extends AbstractService {
 
 
     @Override
-    public void batchUpdate(List ncovAddrDetails) {
+    public void initBatchUpdate(List ncovAddrDetails) {
         int insertCount = 0;
         int executeSqlNum = 0;
         StringBuilder sql = new StringBuilder(1024 * 50);
@@ -246,6 +245,7 @@ public class NcovAddrService extends AbstractService {
                     .append("'").append(ncovAddrDetail.getLatitude()).append("'").append(",")
                     .append(ncovAddrDetail.getCount()).append(",")
                     .append("'").append(ncovAddrDetail.getLongitude()).append("'")
+                    .append("'").append(ncovAddrDetail.getLongitudeLatitude()).append("'")
                     .append(")");
 
             if (insertCount == 99) {

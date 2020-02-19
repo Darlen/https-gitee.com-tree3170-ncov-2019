@@ -12,7 +12,24 @@ spring:
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
-
+  jpa:
+    #show-sql: true
+    hibernate:
+      ddl-auto: none
+      naming:
+        #JPA @Column 设置字段名无效
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    #使用innodb
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
+    properties:
+      hibernate:
+        #show_sql: true #//控制台是否打印
+        #format_sql: true #//格式化sql语句
+        #use_sql_comments: true #//指出是什么操作生成了该语句
+    http:
+      encoding:
+        charset: UTF-8
+        enabled: true
 #自定义配置
 ncov:
   base: /Users/tree/IdeaProject_Local/ncov-demo/file #base目录
@@ -44,6 +61,8 @@ ncov:
       csv:
         filename: DXYArea.csv
         url: ${ncov.base}/${ncov.githubdata.local.csv.filename}
+
+
 
 
 

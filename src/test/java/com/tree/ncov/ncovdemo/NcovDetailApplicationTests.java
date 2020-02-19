@@ -1,11 +1,22 @@
 package com.tree.ncov.ncovdemo;
 
+import com.alibaba.fastjson.JSON;
+import com.tree.ncov.github.ProvinceDetailService;
+import com.tree.ncov.github.entity.NcovCityDetail;
+import com.tree.ncov.github.entity.NcovCountry;
+import com.tree.ncov.github.entity.NcovProvDetail;
+import com.tree.ncov.github.repository.CityDetailRepository;
+import com.tree.ncov.github.repository.CountryRepository;
+import com.tree.ncov.github.repository.ProvDetailRepository;
 import com.tree.ncov.service.NcovAddrService;
 import com.tree.ncov.service.NcovDetailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.util.*;
 
 @SpringBootTest
 class NcovDetailApplicationTests {
@@ -44,6 +55,21 @@ class NcovDetailApplicationTests {
     @Value("${ncov.githubdata.local.csv.filename}")
     private String localCsvFilename;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private ProvinceDetailService provinceDetailService;
+
+    @Autowired
+    private CountryRepository countryRepository;
+    @Autowired
+    private ProvDetailRepository provDetailRepository;
+
+    @Autowired
+    private CityDetailRepository cityDetailRepository;
+    @Autowired
+    private NcovDetailService ncovDetailService;
+
     @Test
     void contextLoads() {
     }
@@ -60,7 +86,7 @@ class NcovDetailApplicationTests {
     }
 
     @Test
-    public void updateData(){
+    public void getValue(){
         System.out.println("dsName="+dsName);
         System.out.println("truncate="+truncate);
         System.out.println("from="+from);
@@ -73,5 +99,37 @@ class NcovDetailApplicationTests {
         System.out.println("localCsvFilename="+localCsvFilename);
         System.out.println("localCsvUrl="+localCsvUrl);
     }
+
+    @Test
+    public void updateAndCompare() throws Exception {
+        ncovDetailService.compareAndUpdate();
+    }
+
+    @Test
+    public void queryForCountry(){
+        List<NcovCountry> countryList = jdbcTemplate.queryForList("select country from ncov_country_stat", NcovCountry.class);
+        System.out.println(JSON.toJSONString(countryList));
+    }
+
+    @Test
+    public void updateProvinceTodayData(){
+        provinceDetailService.updateProvinceTodayData();
+    }
+
+    @Test
+    public void getTodayCountryDetailFromDB(){
+        NcovCountry ncovCountry = provinceDetailService.getTodayCountryDetailFromDB();
+        System.out.println();
+        System.out.println(JSON.toJSONString(ncovCountry));
+    }
+
+
+    @Test
+    public void findLatestByProvince(){
+        NcovCityDetail cityDetail =  cityDetailRepository.findLatestByProvince("广东省");
+        System.out.println(JSON.toJSONString(cityDetail));
+
+    }
+
 
 }

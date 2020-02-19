@@ -28,7 +28,8 @@ public interface Constants {
             "\tdistrict,\n"+
             "\tlatitude,\n"+
             "\tcount,\n"+
-            "\tlongitude\n"+
+            "\tlongitude,\n"+
+            "\tlongitude_latitude\n"+
             ")\n"+
             "VALUES";
 
@@ -81,18 +82,20 @@ public interface Constants {
      * 插入ncov_detail前缀
      */
     String INSERT_NCOV_SQL_PREFIX="INSERT INTO ncov_detail (\n" +
+            "\tcountry,\n" +
             "\tprovince_name,\n" +
+            "\tprovince_short_name,\n" +
             "\tcity_name,\n" +
             "\tprovince_cur_confirmed_count,\n" +
             "\tprovince_confirmed_count,\n" +
             "\tprovince_suspected_count,\n" +
             "\tprovince_cured_count,\n" +
             "\tprovince_dead_count,\n" +
-            "\tcity_cur_confirmed_count,\n" +
-            "\tcity_confirmed_count,\n" +
-            "\tcity_suspected_count,\n" +
-            "\tcity_cured_count,\n" +
-            "\tcity_dead_count,\n" +
+            "\tcurrent_confirm_count,\n" +
+            "\tconfirmed_count,\n" +
+            "\tsuspected_count,\n" +
+            "\tcured_count,\n" +
+            "\tdead_count,\n" +
             "\tupdateTime\n" +
             ")\n" +
             "VALUES";
