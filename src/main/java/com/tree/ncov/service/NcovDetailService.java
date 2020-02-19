@@ -793,6 +793,7 @@ public class NcovDetailService extends AbstractService {
         String sql = "INSERT INTO "+table+" (\n" +
                 "\tcountry,\n" +
                 "\tprovince,\n" +
+                "\tprovince_short_name,\n" +
                 "\tcurrent_confirm_count,\n" +
                 "\tconfirmed_count,\n" +
                 "\tsuspected_count,\n" +
@@ -810,6 +811,7 @@ public class NcovDetailService extends AbstractService {
             valueSql.append("(")
                     .append(" '" ).append(Optional.ofNullable(provDetail.getCountryName()).orElse("中国")).append("' " )
                     .append(", '" ).append(provDetail.getProvinceName()).append("' " )
+                    .append(", '" ).append(provDetail.getProvinceShortName()).append("' " )
                     .append("," + provDetail.getCurConfirmCount())
                     .append("," + provDetail.getConfirmedCount())
                     .append("," + provDetail.getSuspectedCount())
