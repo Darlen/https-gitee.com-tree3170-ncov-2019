@@ -244,7 +244,7 @@ public class NcovAddrService extends AbstractService {
                     .append("'").append(ncovAddrDetail.getDistrict()).append("'").append(",")
                     .append("'").append(ncovAddrDetail.getLatitude()).append("'").append(",")
                     .append(ncovAddrDetail.getCount()).append(",")
-                    .append("'").append(ncovAddrDetail.getLongitude()).append("'")
+                    .append("'").append(ncovAddrDetail.getLongitude()).append("'").append(",")
                     .append("'").append(ncovAddrDetail.getLongitudeLatitude()).append("'")
                     .append(")");
 
