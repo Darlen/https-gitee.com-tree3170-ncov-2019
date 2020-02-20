@@ -126,7 +126,7 @@ public class NcovAddrService extends AbstractService {
                     || StringUtils.isEmpty(addrDetail.getLongitude())
                     | StringUtils.isEmpty(addrDetail.getLatitude())) {
                 invalidCount++;
-                log.info("无效数据， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
+                log.debug("无效数据， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
                 it.remove();
                 continue;
             }
@@ -217,7 +217,7 @@ public class NcovAddrService extends AbstractService {
             } else {
                 duplicateCount++;
                 it.remove();
-                log.info("重复地址， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
+                log.debug("重复地址， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
             }
         }
 //        redisService.hashSet(CBN_DATA_REDIS_KEY+"HASH", );

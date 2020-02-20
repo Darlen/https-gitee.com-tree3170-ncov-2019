@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver #org.postgresql.Driver
     username: root
     password: root
-    url: jdbc:mysql://127.0.0.1:3306/user?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false
+    url: jdbc:mysql://127.0.0.1:3306/user?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2b8
     type: com.zaxxer.hikari.HikariDataSource
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -34,7 +34,7 @@ spring:
 ncov:
   base: /Users/tree/IdeaProject_Local/ncov-demo/file #base目录
   ds:
-    name: pg #使用数据库类型
+    name: mysql #使用数据库类型
   cbndata:
     from: remote
     truncate: true #是否自动清除

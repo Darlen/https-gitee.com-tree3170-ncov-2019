@@ -6,8 +6,10 @@ import com.tree.ncov.github.ProvinceDetailService;
 import com.tree.ncov.github.dto.NcovOverallResult;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountry;
+import com.tree.ncov.github.entity.NcovCountryLatest;
 import com.tree.ncov.github.entity.NcovProvDetail;
 import com.tree.ncov.github.repository.CityDetailRepository;
+import com.tree.ncov.github.repository.CountryLatestRepository;
 import com.tree.ncov.github.repository.CountryRepository;
 import com.tree.ncov.github.repository.ProvDetailRepository;
 import com.tree.ncov.service.NcovAddrService;
@@ -65,6 +67,8 @@ class NcovDetailApplicationTests {
 
     @Autowired
     private CountryRepository countryRepository;
+    @Autowired
+    private CountryLatestRepository countryLatestRepository;
     @Autowired
     private ProvDetailRepository provDetailRepository;
 
@@ -134,6 +138,12 @@ class NcovDetailApplicationTests {
         NcovCityDetail cityDetail =  cityDetailRepository.findLatestByProvince("广东省");
         System.out.println(JSON.toJSONString(cityDetail));
 
+    }
+
+    @Test
+    public void saveCountryLatest(){
+        String s = "{\"confirmedCount\":74675,\"confirmedIncr\":399,\"countryName\":\"中国\",\"createTime\":1582166421712,\"curConfirmCount\":56385,\"curedCount\":16169,\"curedIncr\":1782,\"currentConfirmedCount\":56385,\"currentConfirmedIncr\":-1498,\"deadCount\":2121,\"deadIncr\":115,\"id\":204,\"seriousIncr\":-113,\"suspectedCount\":4922,\"suspectedIncr\":1277,\"updateTime\":1582165324307}\n";
+        countryLatestRepository.save(JSON.parseObject(s, NcovCountryLatest.class));
     }
 
     @Test

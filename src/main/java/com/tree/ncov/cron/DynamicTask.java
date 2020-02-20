@@ -2,6 +2,7 @@ package com.tree.ncov.cron;
 
 import com.tree.ncov.service.NcovAddrService;
 import com.tree.ncov.service.NcovDetailService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -17,7 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
  * @Date 2020-02-16 12:30
  * @Version 1.0
  */
-
+@Slf4j
 @EnableScheduling
 @Configuration
 public class DynamicTask {
@@ -32,13 +33,19 @@ public class DynamicTask {
 //        public String getCron();
 //    }
 
-    @Scheduled(cron = "0/5 * * * * *")
+    /**
+     *  每半小时执行一次
+     */
+    @Scheduled(cron = "0 */30 * * * ?")
     public void githubDataSchedule() throws Exception {
-        Thread.sleep(6000);
-        System.out.println(Thread.currentThread().getName()+"=====>>>>>使用cron  {}"+(System.currentTimeMillis()/1000));
-//        detailService.initDataFromLocal();
-//        addrService.initDataFromRemote();
+        addrService.compareAndUpdate();
+        detailService.compareAndUpdate();
 
+    }
+
+    @Scheduled(cron = "*/10 * * * * ?")
+    public void test() throws Exception {
+        log.info("==>每10秒执行schedual ");
     }
 
     //每天8:00， 23:50 detail数据全量跑
@@ -47,7 +54,7 @@ public class DynamicTask {
 
     //address， 每半个小时跑一遍
 
-    //缺少台湾、西藏、香港数据
+    //缺少台湾、西藏、香港数据   --
 
     // 全国的dead、cure整反了
 

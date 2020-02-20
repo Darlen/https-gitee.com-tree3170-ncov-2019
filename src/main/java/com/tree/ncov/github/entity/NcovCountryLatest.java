@@ -79,8 +79,6 @@ public class NcovCountryLatest extends NcovBaseEntity{
         this.deadIncr = country.getDeadIncr();
         this.seriousIncr = country.getSeriousIncr();
         super.setCreateTime(country.getCreateTime());
-
-
     }
 
 }
