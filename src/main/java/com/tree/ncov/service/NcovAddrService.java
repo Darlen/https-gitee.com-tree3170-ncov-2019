@@ -73,6 +73,8 @@ public class NcovAddrService extends AbstractService {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private AddrRepository addrRepository;
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Override
     protected void executeCompareAndUpdate(List list, Object obj) throws IOException {
@@ -142,7 +144,6 @@ public class NcovAddrService extends AbstractService {
     @Override
     public List<NcovAddrDetail> readFileFromRemote() throws IOException {
         long start = System.currentTimeMillis();
-        RestTemplate restTemplate = new RestTemplate();
         log.info("==>[readFileFromRemote], 读取并解析远程url:{}",remoteJsonUrl);
         NcovResult o = restTemplate.getForObject(remoteJsonUrl, NcovResult.class);
 

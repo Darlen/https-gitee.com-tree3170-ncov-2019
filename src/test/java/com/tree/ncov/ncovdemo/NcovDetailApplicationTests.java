@@ -1,18 +1,15 @@
 package com.tree.ncov.ncovdemo;
 
 import com.alibaba.fastjson.JSON;
-import com.tree.ncov.cbndata.entity.NcovResult;
 import com.tree.ncov.github.ProvinceDetailService;
 import com.tree.ncov.github.dto.NcovOverallResult;
 import com.tree.ncov.github.entity.NcovCityDetail;
 import com.tree.ncov.github.entity.NcovCountry;
 import com.tree.ncov.github.entity.NcovCountryLatest;
-import com.tree.ncov.github.entity.NcovProvDetail;
 import com.tree.ncov.github.repository.CityDetailRepository;
 import com.tree.ncov.github.repository.CountryLatestRepository;
 import com.tree.ncov.github.repository.CountryRepository;
 import com.tree.ncov.github.repository.ProvDetailRepository;
-import com.tree.ncov.service.NcovAddrService;
 import com.tree.ncov.service.NcovDetailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.*;
+import java.util.List;
 
 @SpringBootTest
 class NcovDetailApplicationTests {
@@ -95,6 +92,11 @@ class NcovDetailApplicationTests {
     }
 
     @Test
+    public void updateAndCompare() throws Exception {
+        ncovDetailService.compareAndUpdate();
+    }
+
+    @Test
     public void getValue(){
         System.out.println("dsName="+dsName);
         System.out.println("truncate="+truncate);
@@ -109,10 +111,7 @@ class NcovDetailApplicationTests {
         System.out.println("localCsvUrl="+localCsvUrl);
     }
 
-    @Test
-    public void updateAndCompare() throws Exception {
-        ncovDetailService.compareAndUpdate();
-    }
+
 
     @Test
     public void queryForCountry(){
