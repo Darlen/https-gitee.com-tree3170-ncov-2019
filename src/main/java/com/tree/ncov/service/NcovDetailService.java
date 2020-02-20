@@ -484,10 +484,10 @@ public class NcovDetailService extends AbstractService {
     public void initTable() {
         if (truncate) {
             jdbcTemplate.execute(TRUNCATE_DETAIL_TABLE);
-            jdbcTemplate.execute("truncate `ncov_country_stat_latest`");
-            jdbcTemplate.execute("truncate `ncov_country_stat`");
-            jdbcTemplate.execute("truncate `ncov_province_stat_latest`");
-            jdbcTemplate.execute("truncate `ncov_province_stat`");
+            jdbcTemplate.execute("truncate ncov_country_stat_latest");
+            jdbcTemplate.execute("truncate ncov_country_stat");
+            jdbcTemplate.execute("truncate ncov_province_stat_latest");
+            jdbcTemplate.execute("truncate ncov_province_stat");
         }
     }
 

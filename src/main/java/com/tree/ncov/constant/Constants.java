@@ -16,11 +16,11 @@ public interface Constants {
     String CBN_DATA_CSV_FILE_NAME = "ncov_addr_detail.csv";
     String CBN_DATA_CSV_FILE_PATH = BASE_FOLDER+ CBN_DATA_CSV_FILE_NAME;
     String CBN_DATA_REDIS_KEY = "ncov:cbddata";
-    String TRUNCATE_ADDR_TABLE = "truncate `ncov_addr_detail`";
+    String TRUNCATE_ADDR_TABLE = "truncate ncov_addr_detail";
     /**
      * 改分页查询
      */
-    String SELECT_ALL_ADDR_TABLE = "select * from `ncov_addr_detail`";
+    String SELECT_ALL_ADDR_TABLE = "select * from ncov_addr_detail";
     String INSERT_NCOV_SQL_ADDR_PREFIX = "INSERT INTO ncov_addr_detail (\n"+
             "\taddress,\n"+
             "\tprovince,\n"+
@@ -74,7 +74,7 @@ public interface Constants {
     /**
      * 改分页查询
      */
-    String TRUNCATE_DETAIL_TABLE = "truncate `ncov_detail`";
+    String TRUNCATE_DETAIL_TABLE = "truncate ncov_detail";
     String SELECT_ALL_DETAIL_TABLE = "select * from `ncov_detail`";
 
 
