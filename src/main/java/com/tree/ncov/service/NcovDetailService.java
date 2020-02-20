@@ -53,13 +53,13 @@ public class NcovDetailService extends AbstractService {
     private static Map<String/*完整名*/, String/*short name*/> provinceMap = new HashMap<>();
     static {
 
-        provinceMap.put("上海市","上海市");
+        provinceMap.put("上海市","上海");
         provinceMap.put("云南省","云南");
         provinceMap.put("内蒙古自治区","内蒙古");
-        provinceMap.put("北京市","北京市");
+        provinceMap.put("北京市","北京");
         provinceMap.put("吉林省","吉林");
         provinceMap.put("四川省","四川");
-        provinceMap.put("天津市","天津市");
+        provinceMap.put("天津市","天津");
         provinceMap.put("宁夏回族自治区","宁夏");
         provinceMap.put("安徽省","安徽");
         provinceMap.put("山东省","山东");
@@ -79,7 +79,7 @@ public class NcovDetailService extends AbstractService {
         provinceMap.put("福建省","福建");
         provinceMap.put("贵州省","贵州");
         provinceMap.put("辽宁省","辽宁");
-        provinceMap.put("重庆市","重庆市");
+        provinceMap.put("重庆市","重庆");
         provinceMap.put("陕西省","陕西");
         provinceMap.put("西藏自治区","西藏");
         provinceMap.put("甘肃省","甘肃");
