@@ -32,6 +32,8 @@ spring:
         enabled: true
 #自定义配置
 ncov:
+  proxyable: false #是否需要代理
+  proxy-server: 10.37.84.36
   base: /Users/tree/IdeaProject_Local/ncov-demo/file #base目录
   ds:
     name: mysql #使用数据库类型
