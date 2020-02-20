@@ -3,9 +3,9 @@ package com.tree.ncov.service;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-//import com.tree.ncov.Util.DsUtil;
 import com.tree.ncov.cbndata.entity.NcovAddrDetail;
 import com.tree.ncov.cbndata.entity.NcovResult;
+import com.tree.ncov.cbndata.repository.AddrRepository;
 import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -26,6 +26,8 @@ import java.io.IOException;
 import java.util.*;
 
 import static com.tree.ncov.constant.Constants.*;
+
+//import com.tree.ncov.Util.DsUtil;
 
 /**
  * @ClassName com.tree.ncov
@@ -69,35 +71,63 @@ public class NcovAddrService extends AbstractService {
     private RedisService redisService;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private AddrRepository addrRepository;
 
     @Override
-    public void compareAndUpdate() throws Exception {
-        List<NcovAddrDetail> remoteAddrDetails = readFileFromRemote();
-        Map<String, JSONObject> addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
+    protected void executeCompareAndUpdate(List list, Object obj) throws IOException {
+        List<NcovAddrDetail> remoteAddrDetails = list;
+        List<NcovAddrDetail> dbAddrDetailList = (List<NcovAddrDetail> )obj;
 
-        //如果redis不存在， 则重新初始化数据
-        if (addrDetailMap.size() == 0) {
-            initDataFromLocal();
-            addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
-        }
-
-        List<NcovAddrDetail> addAddrDetails = new ArrayList<>();
-        for (NcovAddrDetail remoteAddrDetail : addAddrDetails) {
-            String address = remoteAddrDetail.getAddress();
-            if (addrDetailMap.get(address) == null) {
-                addAddrDetails.add(remoteAddrDetail);
-                addrDetailMap.put(address, JSON.parseObject(JSON.toJSONString(remoteAddrDetail)));
+        List<NcovAddrDetail> updateList = new ArrayList<>();
+        remoteAddrDetails.forEach(remoteAddrDetail -> {
+            String remoteAddr = remoteAddrDetail.getAddress();
+            if(!dbAddrDetailList.contains(remoteAddrDetail)){
+                updateList.add(remoteAddrDetail);
+                log.info("==> 执行[executeCompareAndUpdate] 该对象不存在与DB， 需要更新,{}",JSON.toJSONString(remoteAddrDetail));
             }
-            NcovAddrDetail redisAddrDetail = JSON.toJavaObject(addrDetailMap.get(address), NcovAddrDetail.class);
-        }
-        //6302-6291=11条重复数据
-        log.info("==> 执行[NcovAddrService] compareAndUpdate===》增加对象：{}", JSON.toJSONString(addAddrDetails));
-        redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
-
-
-        initBatchUpdate(addAddrDetails);
+        });
+        initBatchUpdate(updateList);
 
     }
+
+    @Override
+    protected Object loadTodayData() throws IOException {
+        List<NcovAddrDetail> addrDetailList =  addrRepository.findAll();
+
+        return addrDetailList;
+    }
+
+
+//    @Override
+//    public void compareAndUpdate() throws Exception {
+//        List<NcovAddrDetail> remoteAddrDetails = readFileFromRemote();
+//        Map<String, JSONObject> addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
+//
+//        //如果redis不存在， 则重新初始化数据
+//        if (addrDetailMap.size() == 0) {
+//            initDataFromLocal();
+//            addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
+//        }
+//
+//        List<NcovAddrDetail> addAddrDetails = new ArrayList<>();
+//        for (NcovAddrDetail remoteAddrDetail : addAddrDetails) {
+//            String address = remoteAddrDetail.getAddress();
+//            if (addrDetailMap.get(address) == null) {
+//                addAddrDetails.add(remoteAddrDetail);
+//                addrDetailMap.put(address, JSON.parseObject(JSON.toJSONString(remoteAddrDetail)));
+//            }
+//            NcovAddrDetail redisAddrDetail = JSON.toJavaObject(addrDetailMap.get(address), NcovAddrDetail.class);
+//        }
+//        //6302-6291=11条重复数据
+//        log.info("==> 执行[NcovAddrService] compareAndUpdate===》增加对象：{}", JSON.toJSONString(addAddrDetails));
+//        redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
+//
+//        initBatchUpdate(addAddrDetails);
+//
+//    }
+
+
 
     @Override
     public void downloadFile2Local() throws IOException {
@@ -220,7 +250,6 @@ public class NcovAddrService extends AbstractService {
                 log.debug("重复地址， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
             }
         }
-//        redisService.hashSet(CBN_DATA_REDIS_KEY+"HASH", );
         redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
         log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
                 allCount, duplicateCount, ncovAddrDetails.size(), (System.currentTimeMillis() - start));

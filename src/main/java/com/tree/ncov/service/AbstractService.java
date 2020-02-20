@@ -16,6 +16,8 @@ import java.util.List;
 public abstract class AbstractService {
 
     /**
+     * 两种初始化方式： 第一种为本地初始化
+     *
      * 从本地加载文件初始化数据到数据库
      * @throws IOException
      */
@@ -31,6 +33,7 @@ public abstract class AbstractService {
     }
 
     /**
+     * 两种初始化方式： 第二种为远程初始化
      * 从远程加载文件并初始化到数据库
      * @throws Exception
      */
@@ -45,14 +48,38 @@ public abstract class AbstractService {
         initBatchUpdate(list);
     }
 
-    public void compareAndUpdate() throws Exception {
-        //读取远程数据
+    /**
+     * //读取远程数据
+     *
+     * //读取redis数据
+     *
+     * //对比
+     * @throws Exception
+     */
+    public void compareAndUpdate() throws Exception{
+        //从远程加载集合对象，并简单处理
+        List list = readFileFromRemote();
 
-        //读取redis数据
+        //load DB data
+        Object obj = loadTodayData();
 
-        //对比
-
+        //对比更新
+        executeCompareAndUpdate(list,obj);
     }
+
+    /**
+     * 对比和执行
+     * @param list
+     * @param obj
+     * @throws IOException
+     */
+    protected abstract void executeCompareAndUpdate(List list, Object obj) throws IOException;
+
+    /**
+     * 获取今天的数据
+     * @return
+     */
+    protected abstract Object loadTodayData() throws IOException;
 
     /**
      * 下载文件

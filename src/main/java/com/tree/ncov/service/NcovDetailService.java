@@ -156,14 +156,6 @@ public class NcovDetailService extends AbstractService {
     static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
     static SimpleDateFormat sdf4 = new SimpleDateFormat("yyyyMMdd");
 
-
-    @Override
-    public void initDataFromRemote() throws Exception {
-        log.warn("*****************************");
-        log.warn("#由于远程只有当天的数据，该方法[initDataFromRemote]不支持从远程初始化数据#");
-        log.warn("*****************************");
-    }
-
     /**
      * 如果不是当天数据， 忽略
      * 拿当天数据做对比， 如果存在， 则比较更新时间，如果不存在， 则添加
@@ -171,14 +163,10 @@ public class NcovDetailService extends AbstractService {
      * @throws Exception
      */
     @Override
-    public void compareAndUpdate() throws Exception {
-        //1. 读取远程文件
-        List<NcovProvDetail> remoteChinaProvDetails = readFileFromRemote();
+    protected void executeCompareAndUpdate(List list, Object obj) {
+        List<NcovProvDetail> remoteChinaProvDetails = list;
+        NcovCountry dbCountry = (NcovCountry) obj;
 
-        handleRemoteData(remoteChinaProvDetails);
-
-        // 2. 获取city的当天的数据
-        NcovCountry dbCountry =  provinceDetailService.getTodayCountryDetailFromDB();
         List<NcovProvDetail> dbChinaProvDetails = dbCountry.getResults();
         AtomicInteger executeNum = new AtomicInteger();
         List<String> exeProvinceList = new ArrayList<>();
@@ -194,6 +182,18 @@ public class NcovDetailService extends AbstractService {
 
         log.info("==>总处理条数【{}】, 处理的省份为:{}", executeNum, JSON.toJSONString(exeProvinceList));
 
+    }
+
+    @Override
+    protected Object loadTodayData() throws IOException {
+        return  provinceDetailService.getTodayCountryDetailFromDB();
+    }
+
+    @Override
+    public void initDataFromRemote() throws Exception {
+        log.warn("*****************************");
+        log.warn("#由于远程只有当天的数据，该方法[initDataFromRemote]不支持从远程初始化数据#");
+        log.warn("*****************************");
     }
 
 
@@ -263,7 +263,6 @@ public class NcovDetailService extends AbstractService {
                 log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis() - start));
             } else {
                 dbChinaProvDetails.forEach(dbProvDetail -> {
-//                    Date updateTime = remoteProvDetail.getUpdateTime();
                     //比较同一省份， 时间大小， 如果远程 > DB, 则执行删除当天再更新所有数据
                     long dbFormateUpdateTime  = Long.valueOf(sdf5.format(dbProvDetail.getUpdateTime()));
                     long remoteFormateUpdateTime = Long.valueOf(sdf5.format(remoteUpdateTime));
@@ -275,9 +274,9 @@ public class NcovDetailService extends AbstractService {
                         String yearMonthDay = sdf3.format(remoteUpdateTime);
 
                         //删除当天的这个省份下面的所有城市的数据，
-                        String mysqlDeleteSql = "DELETE FROM NCOV_DETAIL WHERE provinceName='" + province
-                                + "' AND  TO_DAYS(updateTime) = TO_DAYS('" + sdf5.format(remoteUpdateTime) + "')";
-                        String pgDeleteSql = "DELETE FROM NCOV_DETAIL WHERE  provinceName='" + province
+                        String mysqlDeleteSql = "DELETE FROM NCOV_DETAIL WHERE province_name='" + province
+                                + "' AND  TO_DAYS(updateTime) = TO_DAYS('" + sdf2.format(remoteUpdateTime) + "')";
+                        String pgDeleteSql = "DELETE FROM NCOV_DETAIL WHERE  province_name='" + province
                                 + "' AND (updateTime BETWEEN TIMESTAMP'" + yearMonthDay + "' AND TIMESTAMP'" + yearMonthDay + " 23:59:59') ";
                         jdbcTemplate.execute("mysql".equals(dsName) ? mysqlDeleteSql : pgDeleteSql);
                         batchInsertDetail(remoteProvDetail.getCities());
@@ -466,17 +465,22 @@ public class NcovDetailService extends AbstractService {
         //处理数据, 获取有效的中国省市数据
         List<NcovProvDetail> provDetails = result.getResults();
         List<NcovProvDetail> chinaProvDetails = new ArrayList<>();
-        Map<String/*省*/, List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
+//        Map<String/*省*/, List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
 
         provDetails.forEach(ncovProvDetail -> {
             //只获取国家为中国的数据
             if (ncovProvDetail.getCountryName().indexOf("中国") != -1) {
                 chinaProvDetails.add(ncovProvDetail);
-                chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
+//                chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
             }
         });
+
+        //把省份相关的字段塞进城市中
+        handleRemoteData(chinaProvDetails);
+
         log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费时间：{}",provDetails.size(), (System.currentTimeMillis() - start));
         return chinaProvDetails;
+
     }
 
 

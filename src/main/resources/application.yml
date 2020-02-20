@@ -39,7 +39,7 @@ ncov:
     name: mysql #使用数据库类型
   cbndata:
     from: remote
-    truncate: true #是否自动清除
+    truncate: false #是否自动清除
     remote:
       filename: data.json
       url: https://assets.cbndata.org/2019-nCoV/data.json

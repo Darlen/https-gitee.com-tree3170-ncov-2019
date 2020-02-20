@@ -1,25 +1,20 @@
 package com.tree.ncov.ncovdemo;
 
-import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.TypeReference;
 import com.tree.ncov.cbndata.entity.NcovAddrDetail;
-import com.tree.ncov.redis.impl.RedisService;
+import com.tree.ncov.cbndata.repository.AddrRepository;
 import com.tree.ncov.service.NcovAddrService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.List;
-import java.util.Map;
-
-import static com.tree.ncov.constant.Constants.CBN_DATA_REDIS_KEY;
 
 @SpringBootTest
 class NcovAddrApplicationTests {
     @Autowired
-    private NcovAddrService ncovService;
+    private NcovAddrService addrService;
     @Autowired
-    private  RedisService redisService;
+    private AddrRepository addrRepository;
 
     @Test
     void contextLoads() {
@@ -37,17 +32,25 @@ class NcovAddrApplicationTests {
     public void localInitData() throws Exception{
         //2020-02-17 10:12:15.178  INFO 95243 --- [           main] com.tree.ncov.service.NcovAddrService              :
         // ==>执行[putDataInRedis], 总条数【6294】, 重复条数【3】，去除重复数据之后实际条数【6291】, 共花费【802】毫秒
-        ncovService.initDataFromLocal();
+        addrService.initDataFromLocal();
     }
 
     @Test
     public void remoteInitData() throws Exception{
-        ncovService.initDataFromRemote();
+        addrService.initDataFromRemote();
+    }
+
+    @Test
+    public void getAllData() throws Exception{
+       List<NcovAddrDetail> addrDetailList =  addrRepository.findAll();
+        System.out.println(1);
     }
 
     @Test
     public void compareAndUpdate() throws Exception{
-
-        ncovService.compareAndUpdate();
+        addrService.compareAndUpdate();
+        System.out.println(1);
     }
+
+
 }
