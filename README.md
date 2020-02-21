@@ -19,25 +19,29 @@
 
 1. 表`ncov_addr_detail` : 全国确认疫情患者地区分布数据
 
-​       ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_country_stat.png)
+​       ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_addr_detail.png)
 
-2. 表`ncov_country_stat`: 按每天统计全国确认数、感染数、确诊数、死亡数、治愈数等
+2. 表`ncov_detail` : 全国确认疫情患者地区分布数据
 
-   ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_country_stat.png)
+​       ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_detail.png)
 
-3. 表`ncov_country_stat_latest`: 今天最新统计全国确认数、感染数、确诊数、死亡数、治愈数、现存确诊人数（较昨日增加数量）、累计确诊人数（较昨日增加数量）、疑似感染人数（较昨日增加数量）、治愈人数（较昨日增加数量）、死亡人数（较昨日增加数量）、重症病例人数（较昨日增加数量）等
+3. 表`ncov_country_stat`: 按每天统计全国确认数、感染数、确诊数、死亡数、治愈数等
 
-   ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_country_stat_latest.png)
+![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_country_stat.png)
 
-4. 表`ncov_province_stat`: 按天统计全国省确认数、感染数、确诊数、死亡数、治愈数等
+4. 表`ncov_country_stat_latest`: 今天最新统计全国确认数、感染数、确诊数、死亡数、治愈数、现存确诊人数（较昨日增加数量）、累计确诊人数（较昨日增加数量）、疑似感染人数（较昨日增加数量）、治愈人数（较昨日增加数量）、死亡人数（较昨日增加数量）、重症病例人数（较昨日增加数量）等
 
-   ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat.png)
+![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_country_stat_latest.png)
 
-5. 表`ncov_province_stat_latest`: 今天最新统计省份确认数、感染数、确诊数、死亡数、治愈数、现存确诊人数（较昨日增加数量）、累计确诊人数（较昨日增加数量）、疑似感染人数（较昨日增加数量）、治愈人数（较昨日增加数量）、死亡人数（较昨日增加数量）、重症病例人数（较昨日增加数量）等
+5. 表`ncov_province_stat`: 按天统计全国省确认数、感染数、确诊数、死亡数、治愈数等
 
-   ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat_latest.png)
+![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat.png)
 
-     
+6. 表`ncov_province_stat_latest`: 今天最新统计省份确认数、感染数、确诊数、死亡数、治愈数、现存确诊人数（较昨日增加数量）、累计确诊人数（较昨日增加数量）、疑似感染人数（较昨日增加数量）、治愈人数（较昨日增加数量）、死亡人数（较昨日增加数量）、重症病例人数（较昨日增加数量）等
+
+![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat_latest.png)
+
+  
 
 ## 具体展现为大屏
 
