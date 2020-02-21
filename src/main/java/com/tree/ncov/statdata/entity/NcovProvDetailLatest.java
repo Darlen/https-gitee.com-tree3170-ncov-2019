@@ -33,6 +33,8 @@ public class NcovProvDetailLatest extends NcovBaseEntity{
     @Column(name="update_date")
     private Date updateTime;
 
+    public NcovProvDetailLatest(){}
+
     public NcovProvDetailLatest(NcovProvDetail provDetail) {
         this.setCountryName(provDetail.getCountryName());
         this.provinceName = provDetail.getProvinceName();

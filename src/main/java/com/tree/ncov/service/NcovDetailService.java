@@ -226,9 +226,10 @@ public class NcovDetailService extends AbstractService {
     private void handleCompareResult(AtomicInteger executeNum, List<String> exeProvinceList,
                                      NcovProvDetail remoteProvDetail,List<NcovProvDetail> dbChinaProvDetails){
         TimeInterval timeInterval = DateUtil.timer();
-        log.info("==>[handleCompareResult] 开始...");
-        Date remoteUpdateTime = remoteProvDetail.getUpdateTime();
         String province = remoteProvDetail.getProvinceName();
+        log.info("==>【handleCompareResult】, 对比省份【{}】开始...",province);
+        Date remoteUpdateTime = remoteProvDetail.getUpdateTime();
+
         if(dbChinaProvDetails == null || dbChinaProvDetails.size() == 0){
             log.info("  ==>由于数据库中今天[{}]没人任何数据， 全部更新该省份[{}]包括市区数据===========",
                     DateUtil.today(),remoteProvDetail.getProvinceName());
@@ -245,6 +246,7 @@ public class NcovDetailService extends AbstractService {
             executeNum.getAndIncrement();
             exeProvinceList.add(province);
         }else {
+            //如果当前库不包含该远程数据
             if (!dbChinaProvDetails.contains(remoteProvDetail)) {
                 //如果远程数据不是当天数据， 修改为今天日期， 并插入到今天的数据中
                 setRemoteTime2Today(remoteProvDetail);
@@ -259,14 +261,14 @@ public class NcovDetailService extends AbstractService {
 
                 executeNum.getAndIncrement();
                 exeProvinceList.add(province);
-            } else {
+            } else { //如果包含， 那就比较更新时间， 如果远程更新时间更早， 那就更新， 否则忽略
                 //遍历DB数据
                 dbChinaProvDetails.forEach(dbProvDetail -> {
                     Date dbUpdateTime = dbProvDetail.getUpdateTime();
-                    //比较同一省份， 时间大小， 如果远程 > DB, 则执行删除当天再更新所有数据
                     long dbFormateUpdateTime  = Long.valueOf(DateUtil.format(dbUpdateTime,PURE_DATETIME_PATTERN));
                     long remoteFormateUpdateTime = Long.valueOf(DateUtil.format(remoteUpdateTime,PURE_DATETIME_PATTERN));
 
+                    //比较同一省份， 时间大小， 如果远程 > DB, 则执行删除当天再更新所有数据
                     if (province.equals(dbProvDetail.getProvinceName())
                             && remoteFormateUpdateTime > dbFormateUpdateTime) {
                         log.info("  ==>该省份【{}】在DB中的数据时间为【{}】, " +
@@ -284,17 +286,20 @@ public class NcovDetailService extends AbstractService {
 
                         //更新所有远程数据
                         provinceDetailService.updateProvinceTodayData();
-                        log.info("  ==> 更新该省份[{}]共花费[{}]毫秒 ",province, timeInterval.interval());
+                        log.info("  ==> 更新该省份【{}】共花费[{}]毫秒 ",province, timeInterval.interval());
 
                         executeNum.getAndIncrement();
                         exeProvinceList.add(province);
                     } else {
                         //忽略
+                        log.debug("  ==> 忽略，该省份【{}】在DB中的数据时间为【{}】, " +
+                                        "远程时间数据为【{}】, DB > REMOTE， 忽略===========",
+                                province,dbFormateUpdateTime,remoteFormateUpdateTime);
                     }
                 });
             }
         }
-        log.info("==>handleCompareResult】结束, 共花费[{}]毫秒===========", timeInterval.interval());
+        log.info("==>【handleCompareResult】结束, 共花费[{}]毫秒===========", timeInterval.interval());
 
     }
 

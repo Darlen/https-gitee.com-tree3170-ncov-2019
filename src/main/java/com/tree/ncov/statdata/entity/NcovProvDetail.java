@@ -32,6 +32,8 @@ public class NcovProvDetail extends NcovBaseEntity{
     @Column(name="update_date")
     private Date updateTime;
 
+    public NcovProvDetail(){}
+
     public static void main(String[] args) {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         System.out.println(simpleDateFormat.format(new Date(1580996305888L)));
