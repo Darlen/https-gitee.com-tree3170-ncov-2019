@@ -74,8 +74,8 @@ public class NcovDemoApplication {
         //不校验host
         SSLConnectionSocketFactory connectionSocketFactory = new SSLConnectionSocketFactory(sslContext, new NoopHostnameVerifier());
 
-        String proxyUser = "liuzhenshu015";
-        String proxyPwd = "1qa2ws3ed^";
+        String proxyUser = "XXX";
+        String proxyPwd = "XXX";
         HttpHost proxy = new HttpHost(proxyServer,8080);
         //设置proxy的认证信息
         CredentialsProvider provider = new BasicCredentialsProvider();

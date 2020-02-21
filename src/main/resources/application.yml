@@ -33,7 +33,7 @@ spring:
 #自定义配置
 ncov:
   proxyable: false #是否需要代理
-  proxy-server: 10.37.84.36
+  proxy-server: XXX
   retry:
     count: 10  #retry 次数
     sleep: 5000 #毫秒
