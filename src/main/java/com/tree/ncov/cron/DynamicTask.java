@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import javax.annotation.PostConstruct;
+
 /**
  * @ClassName com.tree.ncov.cron
  * Description: <类功能描述>. <br>
@@ -47,6 +49,7 @@ public class DynamicTask {
     /**
      *  每半小时执行一次
      */
+    @PostConstruct
     @Scheduled(cron = "0 */30 * * * ?")
     public void dataSchedule() throws Exception {
         for(int i = 0; i < retryCount; i++) {
