@@ -4,6 +4,7 @@ import com.tree.ncov.service.NcovAddrService;
 import com.tree.ncov.service.NcovDetailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,15 +33,32 @@ public class DynamicTask {
 //        @Select("select cron from cron limit 1")
 //        public String getCron();
 //    }
+    /**
+     *重试次数
+     */
+    @Value("${ncov.retry.count:10}")
+    private int retryCount;
+    /**
+     * 重试睡眠时间
+     */
+    @Value("${ncov.retry.sleep:5000}")
+    private int sleep;
 
     /**
      *  每半小时执行一次
      */
     @Scheduled(cron = "0 */30 * * * ?")
-    public void githubDataSchedule() throws Exception {
-        addrService.compareAndUpdate();
-        detailService.compareAndUpdate();
-
+    public void dataSchedule() throws Exception {
+        for(int i = 0; i < retryCount; i++) {
+            try {
+                addrService.compareAndUpdate();
+                detailService.compareAndUpdate();
+                break;
+            }catch (Exception e){
+                log.error("执行[dataSchedule] 失败， 当前重试次数为【{}】, 睡眠【{}】毫秒之后再执行" ,i,sleep);
+                Thread.sleep(sleep);
+            }
+        }
     }
 
     @Scheduled(cron = "*/10 * * * * ?")
@@ -63,5 +81,6 @@ public class DynamicTask {
     //增加 province_short_name, create_time,country, 修改province
 
     //引入jpa jar包，hutool
+
 
 }
