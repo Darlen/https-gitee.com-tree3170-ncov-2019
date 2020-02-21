@@ -99,7 +99,7 @@
     ### 系统说明： [nCov流程设计](doc/ncov.md)
     ### 技术栈： Spring Boot、JPA、 spring jdbc、mysql、lombok、guava retry等
 
-
+ 
 ## 数据来源
 
 1. [BlankerL](https://github.com/BlankerL)的项目[[DXY-COVID-19-Data](https://github.com/BlankerL/DXY-COVID-19-Data)]
