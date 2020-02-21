@@ -15,7 +15,7 @@
 
 ## 表结构
 
-该程序可以采用mysql或者postgresql， 详见[scheme.sql](doc/scheme.sql)
+该程序可以采用mysql或者postgresql， 详见[scheme.sql](file/scheme.sql)
 
 1. 表`ncov_addr_detail` : 全国确认疫情患者地区分布数据
 
