@@ -39,7 +39,7 @@
 
 6. 表`ncov_province_stat_latest`: 今天最新统计省份确认数、感染数、确诊数、死亡数、治愈数、现存确诊人数（较昨日增加数量）、累计确诊人数（较昨日增加数量）、疑似感染人数（较昨日增加数量）、治愈人数（较昨日增加数量）、死亡人数（较昨日增加数量）、重症病例人数（较昨日增加数量）等
 
-![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat_latest.png)
+![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/ncov_province_stat_latest_schema.png)
 
   
 
