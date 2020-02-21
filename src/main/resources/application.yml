@@ -42,16 +42,16 @@ ncov:
     name: mysql #使用数据库类型
   cbndata:
     from: remote
-    truncate: false #是否自动清除
+    truncateable: true #是否自动清除
     remote:
       filename: data.json
-      url: https://assets.cbndata.org/2019-nCoV/data.json
+      url: https://assets.addrdata.org/2019-nCoV/data.json
     local:
       filename: ncov_addr_detail.csv
       url: ${ncov.base}/${ncov.cbndata.local.filename}
   githubdata:
     from: local
-    truncate: true #是否自动清除
+    truncateable: true #是否自动清除
     remote:
       overall:
         json:
@@ -61,7 +61,7 @@ ncov:
           url: https://lab.isaaclin.cn//nCoV/api/area?latest=1
           filename: DXYArea.json
         zip:
-          url: https://github.com/BlankerL/DXY-COVID-19-Data/archive/master.zip
+          url: https://statdata.com/BlankerL/DXY-COVID-19-Data/archive/master.zip
           filename: master.zip
     local:
       json:

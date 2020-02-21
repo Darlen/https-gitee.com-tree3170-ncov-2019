@@ -60,8 +60,6 @@
       }
   ```
 
-  
-
   - [ ] 2. 执行省市区详细数据初始化，详见NcovDetailApplicationTests.java
 
   ```java
@@ -71,13 +69,37 @@
       }
   ```
   
-- [ ] 启动程序，自动半小时更新
+  - [ ] 3. 启动程序，自动半小时更新, 详见DynamicTask.java
+
+  ```
+      /**
+       *  每半小时执行一次
+       */
+      @PostConstruct
+      @Scheduled(cron = "0 */30 * * * ?")
+      public void dataSchedule() throws Exception {
+          for(int i = 0; i < retryCount; i++) {
+              try {
+                  addrService.compareAndUpdate();
+                  detailService.compareAndUpdate();
+                  break;
+              }catch (Exception e){
+                  log.error("执行[dataSchedule] 失败， 当前重试次数为【{}】, 睡眠【{}】毫秒之后再执行" ,i,sleep);
+                  Thread.sleep(sleep);
+              }
+          }
+      }
+  ```
   
 - [ ] 运行日志截图
 
   ![Image text](https://gitee.com/tree3170/ncov-2019/raw/master/image/运行日志截图.png)
 
-详情设计流程参见[ncov](doc/ncov.md)
+## 详情设计流程
+    ### 系统说明： [nCov流程设计](doc/ncov.md)
+    ### 技术栈： Spring Boot、JPA、 spring jdbc、mysql、lombok、guava retry等
+
+
 ## 数据来源
 
 1. [BlankerL](https://github.com/BlankerL)的项目[[DXY-COVID-19-Data](https://github.com/BlankerL/DXY-COVID-19-Data)]

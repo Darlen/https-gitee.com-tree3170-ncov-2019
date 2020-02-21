@@ -1,15 +1,15 @@
 package com.tree.ncov.ncovdemo;
 
 import com.alibaba.fastjson.JSON;
-import com.tree.ncov.github.ProvinceDetailService;
-import com.tree.ncov.github.dto.NcovOverallResult;
-import com.tree.ncov.github.entity.NcovCityDetail;
-import com.tree.ncov.github.entity.NcovCountry;
-import com.tree.ncov.github.entity.NcovCountryLatest;
-import com.tree.ncov.github.repository.CityDetailRepository;
-import com.tree.ncov.github.repository.CountryLatestRepository;
-import com.tree.ncov.github.repository.CountryRepository;
-import com.tree.ncov.github.repository.ProvDetailRepository;
+import com.tree.ncov.statdata.ProvinceDetailService;
+import com.tree.ncov.statdata.dto.NcovOverallResult;
+import com.tree.ncov.statdata.entity.NcovCityDetail;
+import com.tree.ncov.statdata.entity.NcovCountry;
+import com.tree.ncov.statdata.entity.NcovCountryLatest;
+import com.tree.ncov.statdata.repository.CityDetailRepository;
+import com.tree.ncov.statdata.repository.CountryLatestRepository;
+import com.tree.ncov.statdata.repository.CountryRepository;
+import com.tree.ncov.statdata.repository.ProvDetailRepository;
 import com.tree.ncov.service.NcovDetailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +27,7 @@ class NcovDetailApplicationTests {
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
 
-    @Value("${ncov.githubdata.truncate}")
+    @Value("${ncov.githubdata.truncateable}")
     boolean truncate;
 
     @Value("${ncov.githubdata.from}")
@@ -86,8 +86,6 @@ class NcovDetailApplicationTests {
      */
     @Test
     public void initData() throws Exception{
-        //2020-02-17 12:46:48.504  INFO 12158 --- [           main] com.tree.ncov.service.NcovDetailService
-        // : 执行sql【87】次，总共数量【8689】, 执行数据库总花费【2338】毫秒
         ncovService.initDataFromLocal();
     }
 

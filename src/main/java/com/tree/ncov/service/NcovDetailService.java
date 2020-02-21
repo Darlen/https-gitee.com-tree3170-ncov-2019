@@ -1,27 +1,26 @@
 package com.tree.ncov.service;
 
-import cn.hutool.core.date.DateUnit;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.date.TimeInterval;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
-import com.tree.ncov.github.ProvinceDetailService;
-import com.tree.ncov.github.dto.NcovOverallResult;
-import com.tree.ncov.github.entity.NcovCityDetail;
-import com.tree.ncov.github.entity.NcovCountry;
-import com.tree.ncov.github.entity.NcovCountryLatest;
-import com.tree.ncov.github.entity.NcovProvDetail;
-import com.tree.ncov.github.repository.CountryLatestRepository;
-import com.tree.ncov.github.repository.CountryRepository;
+import com.tree.ncov.statdata.ProvinceDetailService;
+import com.tree.ncov.statdata.dto.NcovOverallResult;
+import com.tree.ncov.statdata.entity.NcovCityDetail;
+import com.tree.ncov.statdata.entity.NcovCountry;
+import com.tree.ncov.statdata.entity.NcovCountryLatest;
+import com.tree.ncov.statdata.entity.NcovProvDetail;
+import com.tree.ncov.statdata.repository.CountryLatestRepository;
+import com.tree.ncov.statdata.repository.CountryRepository;
 import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-//import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -30,7 +29,6 @@ import org.springframework.web.client.RestTemplate;
 import java.io.*;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -93,8 +91,8 @@ public class NcovDetailService extends AbstractService {
     @Value("${ncov.ds.name:mysql}")
     private String dsName;
 
-    @Value("${ncov.githubdata.truncate:false}")
-    boolean truncate;
+    @Value("${ncov.githubdata.truncateable:false}")
+    boolean truncateable;
 
     @Value("${ncov.githubdata.from}")
     private String from;
@@ -150,11 +148,11 @@ public class NcovDetailService extends AbstractService {
      * key 为Address+Latitude+Longitude, 作为缓存， 去除重复的key
      */
     static Map<String, NcovCityDetail> addrDetailMap = new HashMap<>();
-    static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
-    static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-    static SimpleDateFormat sdf5 = new SimpleDateFormat("yyyyMMddHHmmss");
-    static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
-    static SimpleDateFormat sdf4 = new SimpleDateFormat("yyyyMMdd");
+//    static SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
+//    static SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+//    static SimpleDateFormat sdf5 = new SimpleDateFormat("yyyyMMddHHmmss");
+//    static SimpleDateFormat sdf3 = new SimpleDateFormat("yyyy-MM-dd");
+//    static SimpleDateFormat sdf4 = new SimpleDateFormat("yyyyMMdd");
 
     /**
      * 如果不是当天数据， 忽略
@@ -164,6 +162,7 @@ public class NcovDetailService extends AbstractService {
      */
     @Override
     protected void executeCompareAndUpdate(List list, Object obj) {
+        TimeInterval timeInterval = new TimeInterval();
         List<NcovProvDetail> remoteChinaProvDetails = list;
         NcovCountry dbCountry = (NcovCountry) obj;
 
@@ -172,7 +171,6 @@ public class NcovDetailService extends AbstractService {
         List<String> exeProvinceList = new ArrayList<>();
         List<String> notTodayProvinceList = new ArrayList<>();
 
-        //3. 处理
         remoteChinaProvDetails.forEach(remoteProvDetail -> {
             handleCompareResult(executeNum, exeProvinceList, remoteProvDetail, dbChinaProvDetails);
         });
@@ -180,7 +178,8 @@ public class NcovDetailService extends AbstractService {
         //远程获取over all 的各个指标
         updateOverallData();
 
-        log.info("==>总处理条数【{}】, 处理的省份为:{}", executeNum, JSON.toJSONString(exeProvinceList));
+        log.info("==>[executeCompareAndUpdate], 总处理条数【{}】, 处理的省份为:{}, 共花费【{}】毫秒",
+                executeNum, JSON.toJSONString(exeProvinceList),timeInterval.interval());
 
     }
 
@@ -202,25 +201,23 @@ public class NcovDetailService extends AbstractService {
      */
     private void updateOverallData() {
         NcovOverallResult overall = restTemplate.getForObject(overallRemoteJsonUrl, NcovOverallResult.class);
-        log.info("==>执行[updateOverallData], 读取远程JSON文件， 地址为:{}, 内容为：{}",
+        log.info("==>执行[updateOverallData], 读取远程JSON文件， 地址为:{}\n 内容为：{}",
                 overallRemoteJsonUrl,JSON.toJSONString(overall));
 
         if(overall != null && overall.isSuccess() && overall.getResults() != null) {
             NcovCountry overallCountry = overall.getResults().get(0);
-            overallCountry.setCountryName("中国");
+            overallCountry.setCountryName(CHINA);
             overallCountry.setCreateTime(new Date());
             /*
             处理当天中国数据
              */
             countryRepository.deleteToday();
-            overallCountry = countryRepository.save(overallCountry);
-            System.out.println(JSON.toJSONString(overallCountry));
+            countryRepository.save(overallCountry);
             /*
-                处理当天中国Latest数据
+            处理当天中国Latest数据
             */
-            countryLatestRepository.deleteToday();
-            NcovCountryLatest c = countryLatestRepository.save(new NcovCountryLatest(overallCountry));
-            System.out.println(JSON.toJSONString(c));
+            countryLatestRepository.deleteAll();
+            countryLatestRepository.save(new NcovCountryLatest(overallCountry));
         }
 
 
@@ -228,14 +225,16 @@ public class NcovDetailService extends AbstractService {
 
     private void handleCompareResult(AtomicInteger executeNum, List<String> exeProvinceList,
                                      NcovProvDetail remoteProvDetail,List<NcovProvDetail> dbChinaProvDetails){
-        long start = System.currentTimeMillis();
+        TimeInterval timeInterval = DateUtil.timer();
+        log.info("==>[handleCompareResult] 开始...");
         Date remoteUpdateTime = remoteProvDetail.getUpdateTime();
         String province = remoteProvDetail.getProvinceName();
         if(dbChinaProvDetails == null || dbChinaProvDetails.size() == 0){
-            log.info("========【handleCompareResult】， 当天db不存在该省份【{}】数据， 全部更新远程数据===========",remoteProvDetail.getProvinceName());
+            log.info("  ==>由于数据库中今天[{}]没人任何数据， 全部更新该省份[{}]包括市区数据===========",
+                    DateUtil.today(),remoteProvDetail.getProvinceName());
             log.info(JSON.toJSONString(remoteProvDetail));
             //如果远程数据不是当天数据， 修改为今天日期， 并插入到今天的数据中， 因为每天都需要数据
-            setToday(remoteProvDetail);
+            setRemoteTime2Today(remoteProvDetail);
 
             //插入城市数据
             batchInsertDetail(remoteProvDetail.getCities());
@@ -245,13 +244,13 @@ public class NcovDetailService extends AbstractService {
 
             executeNum.getAndIncrement();
             exeProvinceList.add(province);
-            log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis()-start));
         }else {
             if (!dbChinaProvDetails.contains(remoteProvDetail)) {
                 //如果远程数据不是当天数据， 修改为今天日期， 并插入到今天的数据中
-                setToday(remoteProvDetail);
+                setRemoteTime2Today(remoteProvDetail);
 
-                log.info("========【handleCompareResult】， 今天的DB不存在该省份【{}】直接更新该省的数据===========", province);
+                log.info("  ==>由于今天[{}]的数据库中不存在该省份【{}】，直接更新该省包括市区数据===========",
+                        DateUtil.today(), province);
                 log.info(JSON.toJSONString(remoteProvDetail));
                 //插入城市数据
                 batchInsertDetail(remoteProvDetail.getCities());
@@ -260,22 +259,24 @@ public class NcovDetailService extends AbstractService {
 
                 executeNum.getAndIncrement();
                 exeProvinceList.add(province);
-                log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis() - start));
             } else {
+                //遍历DB数据
                 dbChinaProvDetails.forEach(dbProvDetail -> {
+                    Date dbUpdateTime = dbProvDetail.getUpdateTime();
                     //比较同一省份， 时间大小， 如果远程 > DB, 则执行删除当天再更新所有数据
-                    long dbFormateUpdateTime  = Long.valueOf(sdf5.format(dbProvDetail.getUpdateTime()));
-                    long remoteFormateUpdateTime = Long.valueOf(sdf5.format(remoteUpdateTime));
+                    long dbFormateUpdateTime  = Long.valueOf(DateUtil.format(dbUpdateTime,PURE_DATETIME_PATTERN));
+                    long remoteFormateUpdateTime = Long.valueOf(DateUtil.format(remoteUpdateTime,PURE_DATETIME_PATTERN));
+
                     if (province.equals(dbProvDetail.getProvinceName())
                             && remoteFormateUpdateTime > dbFormateUpdateTime) {
-                        log.info("========【handleCompareResult】， 该省份【{}】在DB中的数据时间为【{}】, " +
-                                "远程时间数据为【{}】, DB < Remote， 更新该省份所有数据===========",
+                        log.info("  ==>该省份【{}】在DB中的数据时间为【{}】, " +
+                                "远程时间数据为【{}】, DB < REMOTE， 更新该省份所有数据===========",
                                 province,dbFormateUpdateTime,remoteFormateUpdateTime);
-                        String yearMonthDay = sdf3.format(remoteUpdateTime);
+                        String yearMonthDay = DateUtil.format(remoteUpdateTime,NORM_DATE_PATTERN);
 
                         //删除当天的这个省份下面的所有城市的数据，
                         String mysqlDeleteSql = "DELETE FROM NCOV_DETAIL WHERE province_name='" + province
-                                + "' AND  TO_DAYS(updateTime) = TO_DAYS('" + sdf2.format(remoteUpdateTime) + "')";
+                                + "' AND  TO_DAYS(updateTime) = TO_DAYS('" + DateUtil.format(remoteUpdateTime,NORM_DATETIME_MS_PATTERN) + "')";
                         String pgDeleteSql = "DELETE FROM NCOV_DETAIL WHERE  province_name='" + province
                                 + "' AND (updateTime BETWEEN TIMESTAMP'" + yearMonthDay + "' AND TIMESTAMP'" + yearMonthDay + " 23:59:59') ";
                         jdbcTemplate.execute("mysql".equals(dsName) ? mysqlDeleteSql : pgDeleteSql);
@@ -283,7 +284,7 @@ public class NcovDetailService extends AbstractService {
 
                         //更新所有远程数据
                         provinceDetailService.updateProvinceTodayData();
-                        log.info("========【handleCompareResult】end, 花费时间为{}===========", (System.currentTimeMillis()-start));
+                        log.info("  ==> 更新该省份[{}]共花费[{}]毫秒 ",province, timeInterval.interval());
 
                         executeNum.getAndIncrement();
                         exeProvinceList.add(province);
@@ -293,15 +294,18 @@ public class NcovDetailService extends AbstractService {
                 });
             }
         }
+        log.info("==>handleCompareResult】结束, 共花费[{}]毫秒===========", timeInterval.interval());
+
     }
 
-    private void setToday(NcovProvDetail remoteProvDetail) {
-        Date day = new Date();
-        long today = Long.valueOf(sdf4.format(day));
-        long remote = Long.valueOf(sdf4.format(remoteProvDetail.getUpdateTime()));
+    private void setRemoteTime2Today(NcovProvDetail remoteProvDetail) {
+        Date day = DateUtil.date();
+        long today = Long.valueOf(DateUtil.format(day,PURE_DATE_PATTERN));
+        long remote = Long.valueOf(DateUtil.format(remoteProvDetail.getUpdateTime(),PURE_DATE_PATTERN));
         if(remote < today ){
-            log.info("========【handleCompareResult】， 今天的DB不存在该省份【{}】, 但该省份的时间是【{}】, 小于当天时间， " +
-                    "修改为今天的日期：{}",remoteProvDetail.getProvinceName(), remote,today);
+            log.info("==>[setRemoteTime2Today]， 今天[{}]的DB不存在该省份【{}】, 但该省份的时间是【{}】, \n" +
+                    "由于远程的数据时间小于今天, 故修改远程数据为今天的日期：{} " ,
+                    today,remoteProvDetail.getProvinceName(), remote,today);
             remoteProvDetail.setUpdateTime(day);
             for(NcovCityDetail cityDetail:remoteProvDetail.getCities()){
                 cityDetail.setUpdateTime(day);
@@ -326,7 +330,7 @@ public class NcovDetailService extends AbstractService {
                 List<NcovCityDetail> cityDetails = new ArrayList<>();
                 cityDetails.add(cityObjBuilder(new NcovCityDetail(),provDetail));;
                 provDetail.setCities(cityDetails);
-                provDetail.setCreateTime(new Date());
+                provDetail.setCreateTime(DateUtil.date());
             }
 
             List<NcovCityDetail> cityDetails = provDetail.getCities();
@@ -347,21 +351,21 @@ public class NcovDetailService extends AbstractService {
         cityDetail.setProvinceName(provDetail.getProvinceName());
         cityDetail.setProvinceShortName(provDetail.getProvinceShortName());
         cityDetail.setCountryName(provDetail.getCountryName());
-        cityDetail.setCreateTime(new Date());
+        cityDetail.setCreateTime(DateUtil.date());
 
         return cityDetail;
     }
 
     @Override
     public List readFileFromLocal() throws IOException {
-        long start = System.currentTimeMillis();
+        TimeInterval timeInterval = DateUtil.timer();
         String line = null;
         int i = 0;
         NcovCityDetail detail = null;
         String province = null;
         String city = null;
         List<NcovCityDetail> ncovCityDetails = new ArrayList<>();
-        log.info("==>[readFileFromLocal], 读取本地CSV文件:{}", localCsvUrl);
+        log.info("==>[readFileFromLocal], 读取本地CSV文件: {}", localCsvUrl);
         //issue : 由于csv有的字段中包含逗号，正常读取每行已经无法用逗号分隔来计算 故引入opencsv
         try (CSVReader csvReader = new CSVReaderBuilder(new BufferedReader
                 //GITHUB_DATA_CSV_FILE_PATH
@@ -384,7 +388,7 @@ public class NcovDetailService extends AbstractService {
                     continue;
                 }
                 detail = new NcovCityDetail();
-                detail.setCountryName("中国");
+                detail.setCountryName(CHINA);
                 province = data[0];
                 city = data[3];
                 //单独处理province字段， 由于星空画板不支持省份后面带有"省"， 比如广东省-->广东
@@ -409,24 +413,27 @@ public class NcovDetailService extends AbstractService {
 
                 Date updateTime = null;
                 try {
-                    updateTime = sdf.parse(data[14]);
+                    updateTime = DateUtil.parse(data[14],NORM_DATETIME_MS_PATTERN2);
                 } catch (Exception e) {
+                    log.debug(" ==>解析日期出错，数据为: {}, 解析格式为: {}, \n整条数据为：{}",
+                            data[14],NORM_DATETIME_MS_PATTERN2,JSON.toJSONString(detail),e.getMessage());
                     try {
-                        updateTime = sdf2.parse(data[14]);
+                        updateTime = DateUtil.parse(data[14],NORM_DATETIME_MS_PATTERN);
                     } catch (Exception e1) {
-                        System.err.println(data[14] + "===" + JSON.toJSONString(detail));
+                        log.error(" ==>解析日期出错，数据为: {}, 解析格式为: {}, \n整条数据为：{}",
+                                data[14],NORM_DATETIME_MS_PATTERN,JSON.toJSONString(detail),e.getMessage());
                     }
                 }
                 detail.setUpdateTime(updateTime);
                 ncovCityDetails.add(detail);
 
-                String yearMonthDay = sdf3.format(updateTime);
+                String yearMonthDay = DateUtil.format(updateTime,NORM_DATE_PATTERN);
                 String provCity = province + city;
 
                 i++;
             }
         }
-        log.info("==>执行[readFileFromLocal] 总花费时间【{}】毫秒", (System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromLocal] 总花费【{}】毫秒", timeInterval.interval());
 
         return ncovCityDetails;
     }
@@ -449,7 +456,7 @@ public class NcovDetailService extends AbstractService {
      */
     @Override
     public List readFileFromRemote() throws IOException {
-        long start = System.currentTimeMillis();
+        TimeInterval timeInterval = DateUtil.timer();
 //        log.info("==>[readFileFromRemote], 读取远程JSON文件， 注意由于github网络不通，从本地文件读取:{}", localJsonUrl);
         //注意：由于github不通， 只能到本地读取json文件
 //        FileReader fileReader = new FileReader(new File(localJsonUrl));
@@ -465,11 +472,10 @@ public class NcovDetailService extends AbstractService {
         //处理数据, 获取有效的中国省市数据
         List<NcovProvDetail> provDetails = result.getResults();
         List<NcovProvDetail> chinaProvDetails = new ArrayList<>();
-//        Map<String/*省*/, List<NcovCityDetail>> chinaProvCityMap = new HashMap<>();
 
         provDetails.forEach(ncovProvDetail -> {
             //只获取国家为中国的数据
-            if (ncovProvDetail.getCountryName().indexOf("中国") != -1) {
+            if (ncovProvDetail.getCountryName().indexOf(CHINA) != -1) {
                 chinaProvDetails.add(ncovProvDetail);
 //                chinaProvCityMap.put(ncovProvDetail.getProvinceName(), ncovProvDetail.getCities());
             }
@@ -478,7 +484,7 @@ public class NcovDetailService extends AbstractService {
         //把省份相关的字段塞进城市中
         handleRemoteData(chinaProvDetails);
 
-        log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费时间：{}",provDetails.size(), (System.currentTimeMillis() - start));
+        log.info("==>执行[readFileFromRemote] , 总条数【{}】，总花费【{}】毫秒",provDetails.size(), timeInterval.interval());
         return chinaProvDetails;
 
     }
@@ -486,19 +492,19 @@ public class NcovDetailService extends AbstractService {
 
     @Override
     public void initTable() {
-        if (truncate) {
+        if (truncateable) {
             jdbcTemplate.execute(TRUNCATE_DETAIL_TABLE);
-            jdbcTemplate.execute("truncate ncov_country_stat_latest");
-            jdbcTemplate.execute("truncate ncov_country_stat");
-            jdbcTemplate.execute("truncate ncov_province_stat_latest");
-            jdbcTemplate.execute("truncate ncov_province_stat");
+            jdbcTemplate.execute(TRUNCATE_COUNTRY_TABLE);
+            jdbcTemplate.execute(TRUNCATE_COUNTRY_LATEST_TABLE);
+            jdbcTemplate.execute(TRUNCATE_PROVINCE_TABLE);
+            jdbcTemplate.execute(TRUNCATE_PROVINCE_LATEST_TABLE);
         }
     }
 
 
     @Override
     public void putDataInRedis(List ncovCityDetails) {
-        long start = System.currentTimeMillis();
+        TimeInterval timeInterval = new TimeInterval();
         /**
          * 按年月日存储所有省集合对象， 取每天省的最新数据
          */
@@ -535,7 +541,7 @@ public class NcovDetailService extends AbstractService {
             String province = ncovCityDetail.getProvinceName();
             String city = ncovCityDetail.getCityName();
             Date updateTime = ncovCityDetail.getUpdateTime();
-            String yearMonthDay = sdf3.format(updateTime);
+            String yearMonthDay = DateUtil.format(updateTime, NORM_DATE_PATTERN);
             String provCity = province + city;
 
             //处理市
@@ -597,7 +603,27 @@ public class NcovDetailService extends AbstractService {
         handleStatData(allCityDetails, yearMonthDayProvDetailMap);
 
         log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
-                allCount, duplicateCount, ncovCityDetails.size(), (System.currentTimeMillis() - start));
+                allCount, duplicateCount, ncovCityDetails.size(), timeInterval.interval());
+    }
+
+    /**
+     * 简单组装
+     * @param ncovCityDetail
+     * @return
+     */
+    private NcovProvDetail simpleProvDetailBuilder(NcovCityDetail ncovCityDetail) {
+        NcovProvDetail provDetail = new NcovProvDetail();
+        provDetail.setCountryName(ncovCityDetail.getCountryName());
+        provDetail.setProvinceName(ncovCityDetail.getProvinceName());
+        provDetail.setProvinceShortName(ncovCityDetail.getProvinceShortName());
+        provDetail.setUpdateTime(ncovCityDetail.getUpdateTime());
+        provDetail.setCurrentConfirmedCount(ncovCityDetail.getCurrentConfirmedCount());
+        provDetail.setConfirmedCount(ncovCityDetail.getConfirmedCount());
+        provDetail.setSuspectedCount(ncovCityDetail.getSuspectedCount());
+        provDetail.setCuredCount(ncovCityDetail.getCuredCount());
+        provDetail.setDeadCount(ncovCityDetail.getDeadCount());
+        provDetail.setCreateTime(ncovCityDetail.getCreateTime());
+        return provDetail;
     }
 
     /**
@@ -631,7 +657,7 @@ public class NcovDetailService extends AbstractService {
 
 
         //放入当天数据， 如国家、省份
-        String curDay = sdf3.format(new Date());
+        String curDay = DateUtil.today();
         redisService.put(GITHUBU_DATA_COUNTRY_CURRENT_BY_DAY_REDIS_KEY,
                 redisService.get(GITHUBU_DATA_COUNTRY_BY_DAY_REDIS_KEY+curDay));
         log.info("==>当天国家统计，[{}]天中国统计【{}】",curDay,redisService.get(GITHUBU_DATA_COUNTRY_BY_DAY_REDIS_KEY+curDay));
@@ -646,7 +672,7 @@ public class NcovDetailService extends AbstractService {
 
 
     /**
-     * 统计国家
+     * 统计国家相关指标数据
      * @param provDetailMap
      */
     private NcovCountry handleChinaStatDataByDay(String yearMonthDay,
@@ -677,10 +703,8 @@ public class NcovDetailService extends AbstractService {
         country.setCountryName(countryName);
         country.setUpdateTime(date);
         redisService.put(GITHUBU_DATA_COUNTRY_BY_DAY_REDIS_KEY+yearMonthDay, country);
-        log.info("==>按每天国家统计集合，country={}",JSON.toJSONString(country));
+        log.info("==>按天【{}】统计国家，country为【{}】, 数据为: {}",yearMonthDay, country.getCountryName(), JSON.toJSONString(country));
         return country;
-
-
     }
 
     private void handleProvStatDataByDay(String yearMonthDay, Map<String, NcovProvDetail> provDetailMap) {
@@ -729,7 +753,7 @@ public class NcovDetailService extends AbstractService {
         for (NcovCityDetail cityDetail : allCityDetails) {
             String tmpProvince = cityDetail.getProvinceName();
             Date updateTime = cityDetail.getUpdateTime();
-            String tmpYearMonthDay = sdf3.format(updateTime);
+            String tmpYearMonthDay = DateUtil.today();
             //如果是当天， 并且是同省，并且当前省下面不包含该对象，则添加
             if (tmpYearMonthDay.equals(yearMonthDay)
                     && tmpProvince.equals(provDetail.getProvinceName())
@@ -768,31 +792,26 @@ public class NcovDetailService extends AbstractService {
         }
     }
 
-    private NcovProvDetail simpleProvDetailBuilder(NcovCityDetail ncovCityDetail) {
-        NcovProvDetail provDetail = new NcovProvDetail();
-        provDetail.setProvinceName(ncovCityDetail.getProvinceName());
-        provDetail.setProvinceShortName(ncovCityDetail.getProvinceShortName());
-        provDetail.setUpdateTime(ncovCityDetail.getUpdateTime());
-        return provDetail;
-    }
+
 
 
     @Override
     public void initBatchUpdate(List ncovCityDetails) {
-        Long start = System.currentTimeMillis();
+        TimeInterval timeInterval = new TimeInterval();
         //插入detail表
         batchInsertDetail(ncovCityDetails);
         batchInsertCountry();
         batchInsertCountryLatest();
         batchInsertProvince();
         batchInsertProvinceLatest();
+        log.info("==>[initBatchUpdate], 共花费【{}】毫秒", timeInterval.interval());
     }
 
     private void batchInsertProvinceLatest() {
         JSONArray array = (JSONArray) redisService.get(GITHUBU_DATA_PPROVINCE_CURRENT_BY_DAY_REDIS_KEY);
         if(array != null) {//有可能第二天， redis取不到数据
             List<NcovProvDetail> list = (List<NcovProvDetail>) array.toJavaList(NcovProvDetail.class);
-            executeInsertProvice(list, "ncov_province_stat_latest");
+            executeInsertProvice(list, "ncov_province_stat_latest", DateUtil.today());
         }
     }
 
@@ -823,11 +842,11 @@ public class NcovDetailService extends AbstractService {
                         "\tcured_count,\n" +
                         "\tdead_count,\n" +
                         "\tupdate_date\n" +
-                        ")VALUES(?,?,?,?,?,?,'"+sdf3.format(country.getUpdateTime())+"')";
+                        ")VALUES(?,?,?,?,?,?,'"+DateUtil.format(country.getUpdateTime(),NORM_DATE_PATTERN)+"')";
         jdbcTemplate.update(sql, new PreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps) throws SQLException {
-                ps.setString(1,Optional.ofNullable(country.getCountryName()).orElse("中国"));
+                ps.setString(1,Optional.ofNullable(country.getCountryName()).orElse(CHINA));
                 ps.setLong(2,country.getCurConfirmCount());
                 ps.setLong(3,country.getConfirmedCount());
                 ps.setLong(4,country.getSuspectedCount());
@@ -847,12 +866,12 @@ public class NcovDetailService extends AbstractService {
     private void insertProvince(String day){
         JSONArray array = (JSONArray) redisService.get(GITHUBU_DATA_PPROVINCE_BY_DAY_REDIS_KEY+day);
         List<NcovProvDetail> list = (List<NcovProvDetail>) array.toJavaList(NcovProvDetail.class);
-        executeInsertProvice(list,"ncov_province_stat");
+        executeInsertProvice(list,"ncov_province_stat",day);
 
     }
 
-    private void executeInsertProvice(List<NcovProvDetail> list,String table) {
-        long start = System.currentTimeMillis();
+    private void executeInsertProvice(List<NcovProvDetail> list,String table,String day) {
+        TimeInterval timeInterval = new TimeInterval();
         String sql = "INSERT INTO "+table+" (\n" +
                 "\tcountry,\n" +
                 "\tprovince,\n" +
@@ -862,7 +881,8 @@ public class NcovDetailService extends AbstractService {
                 "\tsuspected_count,\n" +
                 "\tcured_count,\n" +
                 "\tdead_count,\n" +
-                "\tupdate_date\n" +
+                "\tupdate_date,\n" +
+                "\tcreatetime\n" +
                 ")VALUES";
         StringBuilder valueSql =  new StringBuilder(1024*50);
         StringBuilder finalSql =  new StringBuilder(1024*50);
@@ -872,7 +892,7 @@ public class NcovDetailService extends AbstractService {
         for(int i = 0; i< list.size(); i++ ) {
             NcovProvDetail provDetail = list.get(i);
             valueSql.append("(")
-                    .append(" '" ).append(Optional.ofNullable(provDetail.getCountryName()).orElse("中国")).append("' " )
+                    .append(" '" ).append(Optional.ofNullable(provDetail.getCountryName()).orElse(CHINA)).append("' " )
                     .append(", '" ).append(provDetail.getProvinceName()).append("' " )
                     .append(", '" ).append(provDetail.getProvinceShortName()).append("' " )
                     .append("," + provDetail.getCurConfirmCount())
@@ -880,8 +900,10 @@ public class NcovDetailService extends AbstractService {
                     .append("," + provDetail.getSuspectedCount())
                     .append("," + provDetail.getCuredCount())
                     .append("," + provDetail.getDeadCount() )
-                    .append(",'" + sdf3.format(provDetail.getUpdateTime())+"'")
+                    .append(",'" + DateUtil.format(provDetail.getUpdateTime(),NORM_DATE_PATTERN)+"'")
+                    .append(",'" + provDetail.getCreateTime()+"'")
                     .append(")");
+            //按每100执行一次
             if (exeCount == 99) {
                 jdbcTemplate.execute(finalSql.append(valueSql).toString());
                 exeCount++;
@@ -900,13 +922,13 @@ public class NcovDetailService extends AbstractService {
             exeCount++;
         }
 
-        log.info("==>执行[executeInsertProvice], 【{}】次，总共数量【{}】, 执行数据库总花费【{}】毫秒"
-                , exeCount, list.size(), (System.currentTimeMillis() - start));
+        log.info("==>[executeInsertProvice], 执行插入【{}】天数据【{}】次，总共数量【{}】, 执行数据库总花费【{}】毫秒",
+                day, exeCount, list.size(), timeInterval.interval());
     }
 
 
     private void batchInsertDetail(List ncovCityDetails) {
-        Long start = System.currentTimeMillis();
+        TimeInterval timeInterval = new TimeInterval();
         //插入次数，到99
         int insertcount = 0;
         //执行sql次数
@@ -935,7 +957,7 @@ public class NcovDetailService extends AbstractService {
                     .append(detail.getSuspectedCount()).append(",")
                     .append(detail.getCuredCount()).append(",")
                     .append(detail.getDeadCount()).append(",")
-                    .append("'").append(sdf2.format(detail.getUpdateTime())).append("'")
+                    .append("'").append(DateUtil.format(detail.getUpdateTime(),NORM_DATETIME_MS_PATTERN)).append("'")
                     .append(")");
 
             if (insertcount == 99) {
@@ -943,7 +965,7 @@ public class NcovDetailService extends AbstractService {
                 try {
                     jdbcTemplate.execute(sql.append(valueSql).toString());
                 } catch (DataAccessException e) {
-                    log.error("==>[initBatchUpdate] occurs error. sql = {}", sql, e);
+                    log.error("==>[initBatchUpdate] 出错. sql = {}", sql, e);
                     throw new RuntimeException(e);
                 }
                 insertcount = 0;
@@ -966,13 +988,8 @@ public class NcovDetailService extends AbstractService {
             }
         }
 
-        log.info("==>执行[batchInsertDetail]sql【{}】次，总共数量【{}】, 执行数据库总花费【{}】毫秒"
-                , executeSqlNum, travelCount, (System.currentTimeMillis() - start));
-    }
-
-
-    public void insertChinaStatData() {
-
+        log.info("==>[batchInsertDetail]，执行sql【{}】次，总共数量【{}】, 执行数据库总花费【{}】毫秒"
+                , executeSqlNum, travelCount, timeInterval.interval());
     }
 
     public void emptyBufferSql(StringBuilder sql, StringBuilder valueSql) {

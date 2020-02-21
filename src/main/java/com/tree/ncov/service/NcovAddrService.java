@@ -1,11 +1,11 @@
 package com.tree.ncov.service;
 
+import cn.hutool.core.date.TimeInterval;
 import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.tree.ncov.cbndata.entity.NcovAddrDetail;
-import com.tree.ncov.cbndata.entity.NcovResult;
-import com.tree.ncov.cbndata.repository.AddrRepository;
+import com.tree.ncov.addrdata.entity.NcovAddrDetail;
+import com.tree.ncov.addrdata.entity.NcovResult;
+import com.tree.ncov.addrdata.repository.AddrRepository;
 import com.tree.ncov.redis.impl.RedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -23,11 +23,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
-import static com.tree.ncov.constant.Constants.*;
-
-//import com.tree.ncov.Util.DsUtil;
+import static com.tree.ncov.constant.Constants.INSERT_NCOV_SQL_ADDR_PREFIX;
+import static com.tree.ncov.constant.Constants.TRUNCATE_ADDR_TABLE;
 
 /**
  * @ClassName com.tree.ncov
@@ -67,12 +68,18 @@ public class NcovAddrService extends AbstractService {
     @Value("${ncov.cbndata.local.filename}")
     private String localJsonFilename;
 
+    @Value("${ncov.githubdata.truncateable:false}")
+    boolean truncateable;
+
     @Autowired
     private RedisService redisService;
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
     @Autowired
     private AddrRepository addrRepository;
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -100,51 +107,23 @@ public class NcovAddrService extends AbstractService {
         return addrDetailList;
     }
 
-
-//    @Override
-//    public void compareAndUpdate() throws Exception {
-//        List<NcovAddrDetail> remoteAddrDetails = readFileFromRemote();
-//        Map<String, JSONObject> addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
-//
-//        //如果redis不存在， 则重新初始化数据
-//        if (addrDetailMap.size() == 0) {
-//            initDataFromLocal();
-//            addrDetailMap = (Map<String, JSONObject>) redisService.get(CBN_DATA_REDIS_KEY);
-//        }
-//
-//        List<NcovAddrDetail> addAddrDetails = new ArrayList<>();
-//        for (NcovAddrDetail remoteAddrDetail : addAddrDetails) {
-//            String address = remoteAddrDetail.getAddress();
-//            if (addrDetailMap.get(address) == null) {
-//                addAddrDetails.add(remoteAddrDetail);
-//                addrDetailMap.put(address, JSON.parseObject(JSON.toJSONString(remoteAddrDetail)));
-//            }
-//            NcovAddrDetail redisAddrDetail = JSON.toJavaObject(addrDetailMap.get(address), NcovAddrDetail.class);
-//        }
-//        //6302-6291=11条重复数据
-//        log.info("==> 执行[NcovAddrService] compareAndUpdate===》增加对象：{}", JSON.toJSONString(addAddrDetails));
-//        redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
-//
-//        initBatchUpdate(addAddrDetails);
-//
-//    }
-
-
-
-    @Override
+    /**
+     * 下载远程文件到本地
+     * @throws IOException
+     */
     public void downloadFile2Local() throws IOException {
-        long start = System.currentTimeMillis();
+        TimeInterval timeInterval = new TimeInterval();
         List<NcovAddrDetail> ncovAddrDetails = readFileFromRemote();
         log.info("==>[downloadFile2Local], 下载远程文件到本地:{}",localJsonUrl);
         FileUtils.writeStringToFile(new File(localJsonUrl),
                 Json2Csv(JSON.toJSONString(ncovAddrDetails)));
-        log.info("==>执行[downloadFile2Local] , 总花费时间：{}",(System.currentTimeMillis() - start));
+        log.info("==>执行[downloadFile2Local] , 总花费时间：{}",timeInterval.interval());
     }
 
     @Override
     public List<NcovAddrDetail> readFileFromRemote() throws IOException {
-        long start = System.currentTimeMillis();
-        log.info("==>[readFileFromRemote], 读取并解析远程url:{}",remoteJsonUrl);
+        TimeInterval timeInterval = new TimeInterval();
+        log.info("==>[readFileFromRemote],读取并解析远程: {}",remoteJsonUrl);
         NcovResult o = restTemplate.getForObject(remoteJsonUrl, NcovResult.class);
 
         List<NcovAddrDetail> ncovAddrDetails = o.getData();
@@ -153,6 +132,7 @@ public class NcovAddrService extends AbstractService {
         int allCount = ncovAddrDetails.size();
         while (it.hasNext()) {
             NcovAddrDetail addrDetail = it.next();
+            //去除远程无效数据
             if (StringUtils.isEmpty(addrDetail.getAddress())
                     || StringUtils.isEmpty(addrDetail.getLongitude())
                     | StringUtils.isEmpty(addrDetail.getLatitude())) {
@@ -163,8 +143,10 @@ public class NcovAddrService extends AbstractService {
             }
             addrDetail.setLongitudeLatitude(addrDetail.getLatitude()+","+addrDetail.getLatitude());
         }
-        log.info("==>执行[readFileFromRemote] , 总条数【{}】，无效条数【{}】， 去除无效数据后条数【{}】，重复数据11条，故实际为【{}】, 总花费时间【{}】毫秒",
-                allCount,invalidCount,ncovAddrDetails.size(),(ncovAddrDetails.size()-11), (System.currentTimeMillis() - start));
+        log.info("==>[readFileFromRemote],读取远程文件并做简单数据处理 , 总条数【{}】，无效条数【{}】," +
+                        " 去除无效数据后条数【{}】，重复数据11条，故实际为【{}】, 总花费时间【{}】毫秒",
+                allCount,invalidCount,ncovAddrDetails.size(),(ncovAddrDetails.size()-11),
+                timeInterval.interval());
 
         return ncovAddrDetails;
     }
@@ -176,8 +158,8 @@ public class NcovAddrService extends AbstractService {
      */
     @Override
     public List readFileFromLocal() throws IOException {
-        long start = System.currentTimeMillis();
-        log.info("==>执行[readFileFromLocal], 读取本地文件:{}",localJsonUrl);
+        TimeInterval timeInterval = new TimeInterval();
+        log.info("==>[readFileFromLocal], 读取本地文件:{}",localJsonUrl);
         FileReader fileReader = new FileReader(new File(localJsonUrl));
         BufferedReader br = new BufferedReader(fileReader);
 
@@ -197,7 +179,6 @@ public class NcovAddrService extends AbstractService {
             }
             String[] data = line.split(",");
             addrDetail = new NcovAddrDetail();
-            //TODO 改为读JSON文件
             addr = data[0];
             latitude = data[4];
             longtitude = data[6];
@@ -221,7 +202,8 @@ public class NcovAddrService extends AbstractService {
 
             i++;
         }
-        log.info("==>执行[readFileFromLocal] 总花费时间【{}】毫秒", (System.currentTimeMillis() - start));
+        log.info("==>[readFileFromLocal], 读取本地文件并做简单数据处理，总花费时间【{}】毫秒",
+                timeInterval.interval());
 
         return ncovAddrDetails;
     }
@@ -229,38 +211,39 @@ public class NcovAddrService extends AbstractService {
 
     @Override
     public void initTable() {
-        if(truncate) {
+        if(truncateable) {
             jdbcTemplate.execute(TRUNCATE_ADDR_TABLE);
         }
     }
 
 
-    @Override
-    public void putDataInRedis(List ncovAddrDetails) {
-        long start = System.currentTimeMillis();
-        Map<String/*address*/, NcovAddrDetail> addrDetailMap = new HashMap<>();
-        int allCount = ncovAddrDetails.size();
-        Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
-        int duplicateCount = 0;
-        while (it.hasNext()) {
-            NcovAddrDetail addrDetail = it.next();
-            if (!addrDetailMap.containsKey(addrDetail.getAddress())) {
-                addrDetailMap.put(addrDetail.getAddress(), addrDetail);
-            } else {
-                duplicateCount++;
-                it.remove();
-                log.debug("重复地址， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
-            }
-        }
-        redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
-        log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
-                allCount, duplicateCount, ncovAddrDetails.size(), (System.currentTimeMillis() - start));
-
-    }
+//    @Override
+//    public void putDataInRedis(List ncovAddrDetails) {
+//        long start = System.currentTimeMillis();
+//        Map<String/*address*/, NcovAddrDetail> addrDetailMap = new HashMap<>();
+//        int allCount = ncovAddrDetails.size();
+//        Iterator<NcovAddrDetail> it = ncovAddrDetails.iterator();
+//        int duplicateCount = 0;
+//        while (it.hasNext()) {
+//            NcovAddrDetail addrDetail = it.next();
+//            if (!addrDetailMap.containsKey(addrDetail.getAddress())) {
+//                addrDetailMap.put(addrDetail.getAddress(), addrDetail);
+//            } else {
+//                duplicateCount++;
+//                it.remove();
+//                log.debug("重复地址， 忽略：{}", JSON.toJSONString(addrDetail, SerializerFeature.WriteNullStringAsEmpty));
+//            }
+//        }
+//        redisService.put(CBN_DATA_REDIS_KEY, addrDetailMap);
+//        log.info("==>执行[putDataInRedis], 总条数【{}】, 重复条数【{}】，去除重复数据之后实际条数【{}】, 共花费【{}】毫秒",
+//                allCount, duplicateCount, ncovAddrDetails.size(), (System.currentTimeMillis() - start));
+//
+//    }
 
 
     @Override
     public void initBatchUpdate(List ncovAddrDetails) {
+        TimeInterval timeInterval = new TimeInterval();
         int insertCount = 0;
         int executeSqlNum = 0;
         StringBuilder sql = new StringBuilder(1024 * 50);
@@ -279,6 +262,7 @@ public class NcovAddrService extends AbstractService {
                     .append("'").append(ncovAddrDetail.getLongitudeLatitude()).append("'")
                     .append(")");
 
+            //每100条执行一次批量操作
             if (insertCount == 99) {
                 valueSql.append(";");
                 jdbcTemplate.execute(sql.append(valueSql).toString());
@@ -295,13 +279,15 @@ public class NcovAddrService extends AbstractService {
             }
         }
 
+        //最后不满100次， 还执行一次
         if (valueSql.length() != 0) {
             String s = valueSql.substring(0, valueSql.length() - 1);
             jdbcTemplate.execute(sql.append(s).toString());
             executeSqlNum++;
 
         }
-        log.info("执行数据库【{}】次，数据共【{}】条",executeSqlNum ,addrDetails.size());
+        log.info("==>[initBatchUpdate],执行数据库【{}】次，数据共【{}】条, 共花费【{}】毫秒",
+                executeSqlNum ,addrDetails.size(),timeInterval.interval());
     }
 
     public void emptyBufferSql(StringBuilder sql, StringBuilder valueSql) {
