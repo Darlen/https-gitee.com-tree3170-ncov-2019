@@ -161,6 +161,7 @@ public class NcovAddrService extends AbstractService {
                 it.remove();
                 continue;
             }
+            addrDetail.setLongitudeLatitude(addrDetail.getLatitude()+","+addrDetail.getLatitude());
         }
         log.info("==>执行[readFileFromRemote] , 总条数【{}】，无效条数【{}】， 去除无效数据后条数【{}】，重复数据11条，故实际为【{}】, 总花费时间【{}】毫秒",
                 allCount,invalidCount,ncovAddrDetails.size(),(ncovAddrDetails.size()-11), (System.currentTimeMillis() - start));
