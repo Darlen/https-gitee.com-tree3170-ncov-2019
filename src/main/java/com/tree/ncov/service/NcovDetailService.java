@@ -906,7 +906,7 @@ public class NcovDetailService extends AbstractService {
                     .append("," + provDetail.getCuredCount())
                     .append("," + provDetail.getDeadCount() )
                     .append(",'" + DateUtil.format(provDetail.getUpdateTime(),NORM_DATE_PATTERN)+"'")
-                    .append(",'" + provDetail.getCreateTime()+"'")
+                    .append(",'" + DateUtil.format(provDetail.getCreateTime(),NORM_DATETIME_MS_PATTERN)+"'")
                     .append(")");
             //按每100执行一次
             if (exeCount == 99) {
