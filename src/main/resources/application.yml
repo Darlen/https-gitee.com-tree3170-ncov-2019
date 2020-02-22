@@ -45,7 +45,8 @@ ncov:
     truncateable: true #是否自动清除
     remote:
       filename: data.json
-      url: https://assets.addrdata.org/2019-nCoV/data.json
+#      url: https://oss.mapmiao.com/others/ncov/data.json
+      url: https://assets.cbndata.org/2019-nCoV/data.json
     local:
       filename: ncov_addr_detail.csv
       url: ${ncov.base}/${ncov.cbndata.local.filename}

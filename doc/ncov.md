@@ -85,3 +85,7 @@
 
 # 六 使用工具类
 https://hutool.cn/docs/index.html
+
+城市疫情地图
+https://mapmiao.com/ncov/  ：https://oss.mapmiao.com/others/ncov/data.json
+https://www.gubi.io/hb.html ： https://www.gubi.io/build/bj.js

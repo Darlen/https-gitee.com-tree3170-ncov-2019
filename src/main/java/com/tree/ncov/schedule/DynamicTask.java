@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import javax.annotation.PostConstruct;
+
 /**
  * @ClassName com.tree.ncov.schedule
  * Description: 定时执行器
@@ -47,7 +49,7 @@ public class DynamicTask {
     /**
      *  每半小时执行一次
      */
-//    @PostConstruct
+    @PostConstruct
     @Scheduled(cron = "0 */30 * * * ?")
     public void dataSchedule() throws Exception {
         for(int i = 0; i < retryCount; i++) {
@@ -56,7 +58,7 @@ public class DynamicTask {
                 detailService.compareAndUpdate();
                 break;
             }catch (Exception e){
-                log.error("执行[dataSchedule] 失败， 当前重试次数为【{}】, 睡眠【{}】毫秒之后再执行" ,i,sleep);
+                log.error("执行[dataSchedule] 失败， 当前重试次数为【{}】, 睡眠【{}】毫秒之后再执行" ,i,sleep,e);
                 Thread.sleep(sleep);
             }
         }

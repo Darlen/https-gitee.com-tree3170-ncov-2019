@@ -30,6 +30,7 @@ import java.io.*;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.tree.ncov.constant.Constants.*;
@@ -227,6 +228,7 @@ public class NcovDetailService extends AbstractService {
                                      NcovProvDetail remoteProvDetail,List<NcovProvDetail> dbChinaProvDetails){
         TimeInterval timeInterval = DateUtil.timer();
         String province = remoteProvDetail.getProvinceName();
+        AtomicBoolean ignoreProvince = new AtomicBoolean(false);
         log.info("==>【handleCompareResult】, 对比省份【{}】开始...",province);
         Date remoteUpdateTime = remoteProvDetail.getUpdateTime();
 
@@ -292,6 +294,7 @@ public class NcovDetailService extends AbstractService {
                         exeProvinceList.add(province);
                     } else {
                         //忽略
+                        ignoreProvince.set(true);
                         log.debug("  ==> 忽略，该省份【{}】在DB中的数据时间为【{}】, " +
                                         "远程时间数据为【{}】, DB > REMOTE， 忽略===========",
                                 province,dbFormateUpdateTime,remoteFormateUpdateTime);
@@ -299,7 +302,9 @@ public class NcovDetailService extends AbstractService {
                 });
             }
         }
-        log.info("==>【handleCompareResult】结束, 共花费[{}]毫秒===========", timeInterval.interval());
+        if(!ignoreProvince.get()) {
+            log.info("==>【handleCompareResult】结束, 共花费[{}]毫秒===========", timeInterval.interval());
+        }
 
     }
 
