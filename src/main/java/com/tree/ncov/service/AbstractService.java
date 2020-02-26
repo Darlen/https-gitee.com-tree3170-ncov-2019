@@ -118,13 +118,13 @@ public abstract class AbstractService {
      * 读取本地文件
      * @throws IOException
      */
-    public abstract List readFileFromLocal() throws IOException;
+    protected abstract List readFileFromLocal() throws IOException;
 
     /**
      * 从远程读取数据
      * @throws IOException
      */
-    public abstract List readFileFromRemote() throws IOException;
+    protected abstract List readFileFromRemote() throws IOException;
 
     /**
      * 放数据到redis
@@ -138,13 +138,13 @@ public abstract class AbstractService {
      * 初始化表， 如truncate table
      * @
      */
-    public abstract void initTable();
+    protected abstract void initTable();
 
     /**
      * 批量插入数据到数据库
      * @
      */
-    public abstract void initBatchUpdate(List ncovList);
+    protected abstract void initBatchUpdate(List ncovList);
 
 
 
